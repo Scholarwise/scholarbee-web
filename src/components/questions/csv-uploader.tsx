@@ -182,7 +182,7 @@ export function CsvUploader({ onUploadSuccess }: { onUploadSuccess?: () => void 
 
             if (response.ok) {
                 const result = await response.json();
-                toast.success(`Uploaded ${result.imported || parsedQuestions.length} questions successfully!`);
+                toast.success(`Uploaded ${result.success}/${result.total} questions successfully!`);
                 handleClose();
                 if (onUploadSuccess) onUploadSuccess();
             } else {
