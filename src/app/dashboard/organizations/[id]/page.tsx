@@ -51,17 +51,31 @@ export default function OrganizationDetailsPage() {
             try {
                 const token = localStorage.getItem('access_token');
 
-                // Parse token to check for super_admin role (simplified check)
-                // In production, this should be robust claim checking
+                // Check for super_admin role from stored user data or token
                 if (token) {
                     try {
-                        const payload = JSON.parse(atob(token.split('.')[1]));
-                        // Simplified check for development:
-                        if (payload.email === 'avinash_super_admin@scholarbee.com') {
-                            setIsSuperAdmin(true);
+                        // First check user data from localStorage
+                        const userStr = localStorage.getItem('user');
+                        if (userStr) {
+                            const user = JSON.parse(userStr);
+                            // Check if user has super_admin role in any org
+                            if (user.roles && Array.isArray(user.roles)) {
+                                const hasSuperAdmin = user.roles.some(
+                                    (r: { role_name?: string; name?: string }) =>
+                                        r.role_name === 'super_admin' || r.name === 'super_admin'
+                                );
+                                if (hasSuperAdmin) {
+                                    setIsSuperAdmin(true);
+                                }
+                            }
+                            // Fallback: check email for known super admins
+                            // TODO: Remove this once role query is fixed
+                            if (user.email === 'avinash@myndloop.com') {
+                                setIsSuperAdmin(true);
+                            }
                         }
                     } catch (e) {
-                        console.error('Token parse failed', e);
+                        console.error('User data parse failed', e);
                     }
                 }
 
