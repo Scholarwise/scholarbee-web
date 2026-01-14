@@ -159,13 +159,13 @@ export function CsvUploader({ onUploadSuccess }: { onUploadSuccess?: () => void 
             return;
         }
 
-        // Transform parsed questions to API format
+        // Transform parsed questions to API format - use Java API field names
         const questionsPayload = parsedQuestions.map(q => ({
-            question_text: q.text,
-            question_type: q.type.toLowerCase(),
+            text: q.text,
+            type: q.type.toUpperCase(),
             options: q.options ? q.options.split('|').map(opt => opt.trim()) : null,
             correct_answer: q.correct_answer,
-            difficulty: q.complexity.toLowerCase(),
+            complexity: q.complexity.toUpperCase(),
             topic: q.topic,
         }));
 
