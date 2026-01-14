@@ -133,11 +133,9 @@ export function CsvUploader({ onUploadSuccess }: { onUploadSuccess?: () => void 
     };
 
     const handleUpload = async () => {
-        if (!file) return;
+        if (parsedQuestions.length === 0) return;
 
         setIsUploading(true);
-        const formData = new FormData();
-        formData.append('file', file);
 
         const token = localStorage.getItem('access_token');
         const currentOrgData = localStorage.getItem('current_org');
@@ -161,19 +159,30 @@ export function CsvUploader({ onUploadSuccess }: { onUploadSuccess?: () => void 
             return;
         }
 
+        // Transform parsed questions to API format
+        const questionsPayload = parsedQuestions.map(q => ({
+            question_text: q.text,
+            question_type: q.type.toLowerCase(),
+            options: q.options ? q.options.split('|').map(opt => opt.trim()) : null,
+            correct_answer: q.correct_answer,
+            difficulty: q.complexity.toLowerCase(),
+            topic: q.topic,
+        }));
+
         try {
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/questions/upload`, {
                 method: 'POST',
                 headers: {
                     'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
                     'X-Org-Id': orgId
                 },
-                body: formData,
+                body: JSON.stringify({ questions: questionsPayload }),
             });
 
             if (response.ok) {
                 const result = await response.json();
-                toast.success(`Uploaded successfully! processed: ${result.success}/${result.total}`);
+                toast.success(`Uploaded ${result.imported || parsedQuestions.length} questions successfully!`);
                 handleClose();
                 if (onUploadSuccess) onUploadSuccess();
             } else {
