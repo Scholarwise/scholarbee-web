@@ -155,9 +155,17 @@ export function AppSidebar() {
                     if (savedOrg) {
                         const parsed = JSON.parse(savedOrg);
                         const found = orgs.find((o: { id: string }) => o.id === parsed.id);
-                        setActiveOrg(found || orgs[0] || null);
+                        if (found) {
+                            setActiveOrg(found);
+                        } else if (orgs.length > 0) {
+                            // Saved org no longer exists, use first org
+                            setActiveOrg(orgs[0]);
+                            localStorage.setItem('current_org', JSON.stringify(orgs[0]));
+                        }
                     } else if (orgs.length > 0) {
+                        // No saved org, auto-select first org AND save to localStorage
                         setActiveOrg(orgs[0]);
+                        localStorage.setItem('current_org', JSON.stringify(orgs[0]));
                     }
                 }
             } catch (error) {
