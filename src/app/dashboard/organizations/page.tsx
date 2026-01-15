@@ -1,7 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -33,36 +34,16 @@ interface Organization {
 
 export default function OrganizationsPage() {
     const router = useRouter();
-    const [organizations, setOrganizations] = useState<Organization[]>([]);
+    // Use organizations from context (cached)
+    const { organizations: contextOrgs, isLoading, refreshOrganizations } = useOrganizations();
+    const organizations = contextOrgs as Organization[];
+
     const [searchQuery, setSearchQuery] = useState('');
-    const [isLoading, setIsLoading] = useState(true);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [newOrgName, setNewOrgName] = useState('');
     const [newOrgSlug, setNewOrgSlug] = useState('');
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState('');
-
-    const fetchOrganizations = async () => {
-        try {
-            const token = localStorage.getItem('access_token');
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/organizations`,
-                { headers: { Authorization: `Bearer ${token}` } }
-            );
-            if (response.ok) {
-                const data = await response.json();
-                setOrganizations(Array.isArray(data) ? data : data.organizations || []);
-            }
-        } catch (error) {
-            console.error('Failed to fetch organizations:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    useEffect(() => {
-        fetchOrganizations();
-    }, []);
 
     const filteredOrgs = organizations.filter((org) =>
         org.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -116,7 +97,7 @@ export default function OrganizationsPage() {
             setNewOrgName('');
             setNewOrgSlug('');
             setCreateDialogOpen(false);
-            fetchOrganizations();
+            refreshOrganizations();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
         } finally {
