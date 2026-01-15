@@ -68,11 +68,6 @@ export default function OrganizationDetailsPage() {
                                     setIsSuperAdmin(true);
                                 }
                             }
-                            // Fallback: check email for known super admins
-                            // TODO: Remove this once role query is fixed
-                            if (user.email === 'avinash@myndloop.com') {
-                                setIsSuperAdmin(true);
-                            }
                         }
                     } catch (e) {
                         console.error('User data parse failed', e);
