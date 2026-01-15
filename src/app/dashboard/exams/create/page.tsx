@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useOrganizations } from '@/contexts/organizations-context';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,10 +26,12 @@ const steps = [
 
 export default function CreateExamPage() {
     const router = useRouter();
+    // Use organizations from context (cached)
+    const { organizations } = useOrganizations();
+
     const [currentStep, setCurrentStep] = useState(1);
     const [isSystemUser, setIsSystemUser] = useState(false);
     const [userOrgName, setUserOrgName] = useState('');
-    const [organizations, setOrganizations] = useState<{ id: string, name: string, slug: string }[]>([]);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -44,25 +47,6 @@ export default function CreateExamPage() {
     React.useEffect(() => {
         const userData = localStorage.getItem('user');
         const currentOrgData = localStorage.getItem('current_org');
-        const token = localStorage.getItem('access_token');
-
-        // Fetch user's organizations
-        const fetchOrgs = async () => {
-            if (!token) return;
-            try {
-                const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/organizations`, {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (res.ok) {
-                    const data = await res.json();
-                    const orgs = Array.isArray(data) ? data : (data.organizations || []);
-                    setOrganizations(orgs);
-                }
-            } catch (e) {
-                console.error('Failed to fetch orgs', e);
-            }
-        };
-        fetchOrgs();
 
         if (userData) {
             try {
