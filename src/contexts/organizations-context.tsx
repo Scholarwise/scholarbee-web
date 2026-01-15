@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef, useMemo } from 'react';
 
 interface Organization {
     id: string;
@@ -137,15 +137,10 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
         if (hasFetchedRef.current) return;
         hasFetchedRef.current = true;
 
-        // If we have cached data, use it directly
+        // If we have cached data, use it directly (no state updates needed, already initialized)
         const cached = getCachedOrgs();
         if (cached && cached.length > 0) {
-            setOrganizations(cached);
-            const active = getActiveOrgFromStorage(cached);
-            if (active) {
-                setActiveOrgState(active);
-            }
-            setIsLoading(false);
+            // Only update if different from initial state
             return;
         }
 
@@ -180,14 +175,17 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
         setIsLoading(false);
     }, [fetchOrganizations]);
 
+    // Memoize context value to prevent unnecessary re-renders
+    const contextValue = useMemo(() => ({
+        organizations,
+        activeOrg,
+        isLoading,
+        setActiveOrg,
+        refreshOrganizations
+    }), [organizations, activeOrg, isLoading, setActiveOrg, refreshOrganizations]);
+
     return (
-        <OrganizationsContext.Provider value={{
-            organizations,
-            activeOrg,
-            isLoading,
-            setActiveOrg,
-            refreshOrganizations
-        }}>
+        <OrganizationsContext.Provider value={contextValue}>
             {children}
         </OrganizationsContext.Provider>
     );
