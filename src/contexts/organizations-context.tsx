@@ -19,35 +19,67 @@ interface OrganizationsContextType {
 
 const OrganizationsContext = createContext<OrganizationsContextType | undefined>(undefined);
 
+// Module-level cache that persists across component remounts
+let cachedOrganizations: Organization[] | null = null;
+let fetchPromise: Promise<Organization[]> | null = null;
+
 export function OrganizationsProvider({ children }: { children: ReactNode }) {
-    const [organizations, setOrganizations] = useState<Organization[]>([]);
+    const [organizations, setOrganizations] = useState<Organization[]>(cachedOrganizations || []);
     const [activeOrg, setActiveOrgState] = useState<Organization | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [hasFetched, setHasFetched] = useState(false);
+    const [isLoading, setIsLoading] = useState(!cachedOrganizations);
 
-    const fetchOrganizations = useCallback(async () => {
-        try {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                setIsLoading(false);
-                return;
-            }
+    const fetchOrganizations = useCallback(async (force = false): Promise<Organization[]> => {
+        // Return cached data if available and not forcing refresh
+        if (!force && cachedOrganizations) {
+            return cachedOrganizations;
+        }
 
-            const response = await fetch(
-                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/organizations`,
-                {
-                    headers: { 'Authorization': `Bearer ${token}` }
+        // If fetch is already in progress, wait for it
+        if (!force && fetchPromise) {
+            return fetchPromise;
+        }
+
+        const token = localStorage.getItem('access_token');
+        if (!token) {
+            setIsLoading(false);
+            return [];
+        }
+
+        fetchPromise = (async () => {
+            try {
+                const response = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/organizations`,
+                    {
+                        headers: { 'Authorization': `Bearer ${token}` }
+                    }
+                );
+
+                if (response.ok) {
+                    const data = await response.json();
+                    const orgs = Array.isArray(data) ? data : (data.organizations || []);
+                    cachedOrganizations = orgs;
+                    return orgs;
                 }
-            );
+                return [];
+            } finally {
+                fetchPromise = null;
+            }
+        })();
 
-            if (response.ok) {
-                const data = await response.json();
-                const orgs = Array.isArray(data) ? data : (data.organizations || []);
-                setOrganizations(orgs);
+        return fetchPromise;
+    }, []);
 
-                // Set active org from localStorage or first org
-                const savedOrg = localStorage.getItem('current_org');
-                if (savedOrg) {
+    // Initialize on mount
+    useEffect(() => {
+        const init = async () => {
+            const orgs = await fetchOrganizations();
+            setOrganizations(orgs);
+            setIsLoading(false);
+
+            // Set active org from localStorage or first org
+            const savedOrg = localStorage.getItem('current_org');
+            if (savedOrg) {
+                try {
                     const parsed = JSON.parse(savedOrg);
                     const found = orgs.find((o: Organization) => o.id === parsed.id);
                     if (found) {
@@ -56,25 +88,20 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
                         setActiveOrgState(orgs[0]);
                         localStorage.setItem('current_org', JSON.stringify(orgs[0]));
                     }
-                } else if (orgs.length > 0) {
-                    setActiveOrgState(orgs[0]);
-                    localStorage.setItem('current_org', JSON.stringify(orgs[0]));
+                } catch {
+                    if (orgs.length > 0) {
+                        setActiveOrgState(orgs[0]);
+                        localStorage.setItem('current_org', JSON.stringify(orgs[0]));
+                    }
                 }
+            } else if (orgs.length > 0) {
+                setActiveOrgState(orgs[0]);
+                localStorage.setItem('current_org', JSON.stringify(orgs[0]));
             }
-        } catch (error) {
-            console.error('Failed to fetch organizations:', error);
-        } finally {
-            setIsLoading(false);
-            setHasFetched(true);
-        }
-    }, []);
+        };
 
-    // Fetch once on mount, or if token changes
-    useEffect(() => {
-        if (!hasFetched) {
-            fetchOrganizations();
-        }
-    }, [hasFetched, fetchOrganizations]);
+        init();
+    }, [fetchOrganizations]);
 
     const setActiveOrg = useCallback((org: Organization) => {
         setActiveOrgState(org);
@@ -83,7 +110,10 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
 
     const refreshOrganizations = useCallback(async () => {
         setIsLoading(true);
-        await fetchOrganizations();
+        cachedOrganizations = null; // Clear cache
+        const orgs = await fetchOrganizations(true);
+        setOrganizations(orgs);
+        setIsLoading(false);
     }, [fetchOrganizations]);
 
     return (
@@ -106,3 +136,4 @@ export function useOrganizations() {
     }
     return context;
 }
+
