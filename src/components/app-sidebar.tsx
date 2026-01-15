@@ -3,6 +3,7 @@
 import * as React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
+import { useOrganizations } from '@/contexts/organizations-context';
 import {
     BookOpen,
     FileQuestion,
@@ -122,61 +123,12 @@ export function AppSidebar() {
         }
     };
 
-    // Organizations state - fetched from API
-    const [organizations, setOrganizations] = React.useState<{ id: string, name: string, slug: string }[]>([]);
-    const [activeOrg, setActiveOrg] = React.useState<{ id: string, name: string, slug: string } | null>(null);
-    const [isLoadingOrgs, setIsLoadingOrgs] = React.useState(true);
+    // Use organizations from context (cached at app level)
+    const { organizations, activeOrg, isLoading: isLoadingOrgs, setActiveOrg } = useOrganizations();
 
     // Switch warning state
     const [showSwitchDialog, setShowSwitchDialog] = React.useState(false);
     const [pendingOrg, setPendingOrg] = React.useState<{ id: string, name: string, slug: string } | null>(null);
-
-    // Fetch user's organizations on mount
-    React.useEffect(() => {
-        const fetchOrganizations = async () => {
-            try {
-                const token = localStorage.getItem('access_token');
-                if (!token) return;
-
-                const response = await fetch(
-                    `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/organizations`,
-                    {
-                        headers: { 'Authorization': `Bearer ${token}` }
-                    }
-                );
-
-                if (response.ok) {
-                    const data = await response.json();
-                    const orgs = Array.isArray(data) ? data : (data.organizations || []);
-                    setOrganizations(orgs);
-
-                    // Set active org from localStorage or first org
-                    const savedOrg = localStorage.getItem('current_org');
-                    if (savedOrg) {
-                        const parsed = JSON.parse(savedOrg);
-                        const found = orgs.find((o: { id: string }) => o.id === parsed.id);
-                        if (found) {
-                            setActiveOrg(found);
-                        } else if (orgs.length > 0) {
-                            // Saved org no longer exists, use first org
-                            setActiveOrg(orgs[0]);
-                            localStorage.setItem('current_org', JSON.stringify(orgs[0]));
-                        }
-                    } else if (orgs.length > 0) {
-                        // No saved org, auto-select first org AND save to localStorage
-                        setActiveOrg(orgs[0]);
-                        localStorage.setItem('current_org', JSON.stringify(orgs[0]));
-                    }
-                }
-            } catch (error) {
-                console.error('Failed to fetch organizations:', error);
-            } finally {
-                setIsLoadingOrgs(false);
-            }
-        };
-
-        fetchOrganizations();
-    }, []);
 
     const handleOrgChange = (org: { id: string, name: string, slug: string }) => {
         setPendingOrg(org);
