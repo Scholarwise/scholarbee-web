@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode, useRef } from 'react';
 
 interface Organization {
     id: string;
@@ -21,12 +21,29 @@ const OrganizationsContext = createContext<OrganizationsContextType | undefined>
 
 // Module-level cache that persists across component remounts
 let cachedOrganizations: Organization[] | null = null;
+let cachedActiveOrg: Organization | null = null;
 let fetchPromise: Promise<Organization[]> | null = null;
+let hasInitialized = false;
+
+// Helper to get active org from localStorage
+function getActiveOrgFromStorage(orgs: Organization[]): Organization | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const savedOrg = localStorage.getItem('current_org');
+        if (savedOrg) {
+            const parsed = JSON.parse(savedOrg);
+            const found = orgs.find(o => o.id === parsed.id);
+            if (found) return found;
+        }
+    } catch { }
+    return orgs.length > 0 ? orgs[0] : null;
+}
 
 export function OrganizationsProvider({ children }: { children: ReactNode }) {
     const [organizations, setOrganizations] = useState<Organization[]>(cachedOrganizations || []);
-    const [activeOrg, setActiveOrgState] = useState<Organization | null>(null);
-    const [isLoading, setIsLoading] = useState(!cachedOrganizations);
+    const [activeOrg, setActiveOrgState] = useState<Organization | null>(cachedActiveOrg);
+    const [isLoading, setIsLoading] = useState(!hasInitialized);
+    const initRef = useRef(hasInitialized);
 
     const fetchOrganizations = useCallback(async (force = false): Promise<Organization[]> => {
         // Return cached data if available and not forcing refresh
@@ -41,7 +58,6 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
 
         const token = localStorage.getItem('access_token');
         if (!token) {
-            setIsLoading(false);
             return [];
         }
 
@@ -69,50 +85,47 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
         return fetchPromise;
     }, []);
 
-    // Initialize on mount
+    // Initialize only once across all mounts
     useEffect(() => {
+        // Skip if already initialized (cached)
+        if (initRef.current) {
+            return;
+        }
+
         const init = async () => {
             const orgs = await fetchOrganizations();
+            cachedOrganizations = orgs;
             setOrganizations(orgs);
-            setIsLoading(false);
 
-            // Set active org from localStorage or first org
-            const savedOrg = localStorage.getItem('current_org');
-            if (savedOrg) {
-                try {
-                    const parsed = JSON.parse(savedOrg);
-                    const found = orgs.find((o: Organization) => o.id === parsed.id);
-                    if (found) {
-                        setActiveOrgState(found);
-                    } else if (orgs.length > 0) {
-                        setActiveOrgState(orgs[0]);
-                        localStorage.setItem('current_org', JSON.stringify(orgs[0]));
-                    }
-                } catch {
-                    if (orgs.length > 0) {
-                        setActiveOrgState(orgs[0]);
-                        localStorage.setItem('current_org', JSON.stringify(orgs[0]));
-                    }
-                }
-            } else if (orgs.length > 0) {
-                setActiveOrgState(orgs[0]);
-                localStorage.setItem('current_org', JSON.stringify(orgs[0]));
+            const active = getActiveOrgFromStorage(orgs);
+            if (active) {
+                cachedActiveOrg = active;
+                setActiveOrgState(active);
+                localStorage.setItem('current_org', JSON.stringify(active));
             }
+
+            hasInitialized = true;
+            initRef.current = true;
+            setIsLoading(false);
         };
 
         init();
     }, [fetchOrganizations]);
 
     const setActiveOrg = useCallback((org: Organization) => {
+        cachedActiveOrg = org;
         setActiveOrgState(org);
         localStorage.setItem('current_org', JSON.stringify(org));
     }, []);
 
     const refreshOrganizations = useCallback(async () => {
         setIsLoading(true);
-        cachedOrganizations = null; // Clear cache
+        cachedOrganizations = null;
+        hasInitialized = false;
         const orgs = await fetchOrganizations(true);
+        cachedOrganizations = orgs;
         setOrganizations(orgs);
+        hasInitialized = true;
         setIsLoading(false);
     }, [fetchOrganizations]);
 
