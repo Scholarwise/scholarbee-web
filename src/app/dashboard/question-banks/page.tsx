@@ -298,7 +298,7 @@ function QuestionRow({
     const options = Array.isArray(question.options)
         ? question.options
         : (typeof question.options === 'string'
-            ? (question.options as string).split(',').map(s => s.trim())
+            ? (question.options as string).split(/[;,]/).map(s => s.trim())
             : []);
 
     const handleTextDoubleClick = () => {
