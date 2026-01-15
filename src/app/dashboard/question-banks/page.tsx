@@ -295,11 +295,27 @@ function QuestionRow({
         }
     };
 
-    const options = Array.isArray(question.options)
-        ? question.options
-        : (typeof question.options === 'string'
-            ? (question.options as string).split(/[;,]/).map(s => s.trim())
-            : []);
+    // Robust parsing of options to handle various API/DB formats
+    let parsedOptions: string[] = [];
+    const rawOptions = question.options;
+
+    if (Array.isArray(rawOptions) && rawOptions.length > 0) {
+        // Handle case where API returns ["A;B;C"] as a single element array
+        if (rawOptions.length === 1 && typeof rawOptions[0] === 'string' && (rawOptions[0].includes(';') || rawOptions[0].includes(','))) {
+            parsedOptions = rawOptions[0].split(/[;,]/).map(s => s.trim());
+        } else {
+            parsedOptions = rawOptions;
+        }
+    } else if (typeof rawOptions === 'string') {
+        parsedOptions = (rawOptions as string).split(/[;,]/).map(s => s.trim());
+    }
+
+    // Default options for True/False if missing
+    if (parsedOptions.length === 0 && question.type === 'TRUE_FALSE') {
+        parsedOptions = ['True', 'False'];
+    }
+
+    const options = parsedOptions;
 
     const handleTextDoubleClick = () => {
         if (isInherited) return; // Prevention
