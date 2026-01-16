@@ -400,7 +400,7 @@ export default function RolesPage() {
                                                         <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                                                     </div>
                                                     {permissionDropdownOpen && (
-                                                        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
+                                                        <div className="absolute z-50 mt-2 w-full rounded-md border bg-popover shadow-lg">
                                                             <div className="max-h-[200px] overflow-y-auto p-1">
                                                                 {permissions
                                                                     .filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase()))
