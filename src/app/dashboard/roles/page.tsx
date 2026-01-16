@@ -381,10 +381,44 @@ export default function RolesPage() {
                                             </div>
                                             <DialogFooter>
                                                 <Button variant="outline" onClick={() => setEditPriorityOpen(false)}>Cancel</Button>
-                                                <Button onClick={() => {
-                                                    // TODO: Save priority order to API
-                                                    toast.success('Priority order saved');
-                                                    setEditPriorityOpen(false);
+                                                <Button onClick={async () => {
+                                                    try {
+                                                        const token = localStorage.getItem('token');
+                                                        const activeOrg = JSON.parse(localStorage.getItem('activeOrg') || '{}');
+                                                        const orgId = activeOrg?.id;
+
+                                                        if (!orgId) {
+                                                            toast.error('No organization selected');
+                                                            return;
+                                                        }
+
+                                                        const response = await fetch(
+                                                            `${process.env.NEXT_PUBLIC_API_URL}/api/roles/priority`,
+                                                            {
+                                                                method: 'PUT',
+                                                                headers: {
+                                                                    'Authorization': `Bearer ${token}`,
+                                                                    'Content-Type': 'application/json',
+                                                                },
+                                                                body: JSON.stringify({
+                                                                    role_ids: priorityRoles.map(r => r.id),
+                                                                    org_id: orgId,
+                                                                }),
+                                                            }
+                                                        );
+
+                                                        if (response.ok) {
+                                                            toast.success('Priority order saved');
+                                                            setRoles([...priorityRoles]); // Update local state
+                                                            setEditPriorityOpen(false);
+                                                            fetchRoles(); // Refresh from server
+                                                        } else {
+                                                            const error = await response.json();
+                                                            toast.error(error.error || 'Failed to save priority');
+                                                        }
+                                                    } catch (error) {
+                                                        toast.error('Failed to save priority');
+                                                    }
                                                 }}>Save changes</Button>
                                             </DialogFooter>
                                         </DialogContent>
