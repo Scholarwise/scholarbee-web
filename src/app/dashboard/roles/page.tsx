@@ -389,28 +389,18 @@ export default function RolesPage() {
                                             <div className="space-y-2">
                                                 <Label>Permissions</Label>
                                                 <div className="relative">
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setPermissionDropdownOpen(!permissionDropdownOpen)}
-                                                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
-                                                    >
-                                                        <span className={newRole.permission_ids.length === 0 ? 'text-muted-foreground' : ''}>
-                                                            {newRole.permission_ids.length === 0
-                                                                ? 'Search permissions...'
-                                                                : `${newRole.permission_ids.length} permission${newRole.permission_ids.length !== 1 ? 's' : ''} selected`}
-                                                        </span>
-                                                        <ChevronDown className="h-4 w-4 opacity-50" />
-                                                    </button>
+                                                    <div className="relative">
+                                                        <Input
+                                                            placeholder="Search permissions..."
+                                                            value={permissionSearchInDialog}
+                                                            onChange={(e) => setPermissionSearchInDialog(e.target.value)}
+                                                            onFocus={() => setPermissionDropdownOpen(true)}
+                                                            className="pr-8"
+                                                        />
+                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                                    </div>
                                                     {permissionDropdownOpen && (
                                                         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
-                                                            <div className="p-2 border-b">
-                                                                <Input
-                                                                    placeholder="Search..."
-                                                                    value={permissionSearchInDialog}
-                                                                    onChange={(e) => setPermissionSearchInDialog(e.target.value)}
-                                                                    className="h-8"
-                                                                />
-                                                            </div>
                                                             <div className="max-h-[200px] overflow-y-auto p-1">
                                                                 {permissions
                                                                     .filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase()))
