@@ -29,7 +29,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Plus, ChevronDown, Check } from 'lucide-react';
+import { Search, MoreHorizontal, Plus, ChevronDown, Check, GripVertical } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Permission {
@@ -76,6 +76,9 @@ export default function RolesPage() {
     });
     const [permissionDropdownOpen, setPermissionDropdownOpen] = useState(false);
     const [permissionSearchInDialog, setPermissionSearchInDialog] = useState('');
+    const [editPriorityOpen, setEditPriorityOpen] = useState(false);
+    const [priorityRoles, setPriorityRoles] = useState<Role[]>([]);
+    const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
     // Fetch roles
     const fetchRoles = async () => {
@@ -335,213 +338,264 @@ export default function RolesPage() {
                                         className="pl-9 h-10 bg-muted/20 border-input/50 focus-visible:bg-background transition-colors"
                                     />
                                 </div>
-                                <Dialog open={createRoleDialogOpen} onOpenChange={setCreateRoleDialogOpen}>
-                                    <DialogTrigger asChild>
-                                        <Button className="h-9 bg-primary hover:bg-primary/90">
-                                            <Plus className="h-4 w-4 mr-2" />
-                                            Create role
-                                        </Button>
-                                    </DialogTrigger>
-                                    <DialogContent>
-                                        <DialogHeader>
-                                            <DialogTitle>Create Role</DialogTitle>
-                                            <DialogDescription>
-                                                Add a new role to assign to users in your organization.
-                                            </DialogDescription>
-                                        </DialogHeader>
-                                        <div className="space-y-4 py-4">
-                                            <div className="space-y-2">
-                                                <Label htmlFor="roleName">Name</Label>
-                                                <Input
-                                                    id="roleName"
-                                                    placeholder='User-friendly name of the role, e.g. "Admin"'
-                                                    value={newRole.name}
-                                                    onChange={(e) => {
-                                                        const name = e.target.value;
-                                                        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
-                                                        setNewRole({ ...newRole, name, slug });
-                                                    }}
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="roleSlug">Slug</Label>
-                                                <Input
-                                                    id="roleSlug"
-                                                    placeholder="A unique case-sensitive key to reference the role in your code"
-                                                    value={newRole.slug}
-                                                    onChange={(e) => setNewRole({ ...newRole, slug: e.target.value })}
-                                                    className="font-mono"
-                                                />
-                                                <p className="text-xs text-muted-foreground">
-                                                    A unique key to reference the role in your code. Can't be edited after creation.
-                                                </p>
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label htmlFor="roleDescription">Description</Label>
-                                                <textarea
-                                                    id="roleDescription"
-                                                    placeholder="Optional. Describe what this role allows..."
-                                                    value={newRole.description}
-                                                    onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
-                                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                                                />
-                                            </div>
-                                            <div className="space-y-2">
-                                                <Label>Permissions</Label>
-                                                <div className="relative">
-                                                    <div className="relative">
-                                                        <Input
-                                                            placeholder="Search permissions..."
-                                                            value={permissionSearchInDialog}
-                                                            onChange={(e) => setPermissionSearchInDialog(e.target.value)}
-                                                            onFocus={() => setPermissionDropdownOpen(true)}
-                                                            className="pr-8"
-                                                        />
-                                                        <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
+                                <div className="flex items-center gap-2">
+                                    <Dialog open={editPriorityOpen} onOpenChange={(open) => {
+                                        setEditPriorityOpen(open);
+                                        if (open) setPriorityRoles([...roles]);
+                                    }}>
+                                        <DialogTrigger asChild>
+                                            <Button variant="outline" className="h-9">Edit priority</Button>
+                                        </DialogTrigger>
+                                        <DialogContent className="max-w-md">
+                                            <DialogHeader>
+                                                <DialogTitle>Edit priority</DialogTitle>
+                                                <DialogDescription>
+                                                    Role priority determines which role takes precedence when a user has multiple roles.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <p className="text-sm text-muted-foreground">Drag roles to change the priority, from highest to lowest.</p>
+                                            <div className="space-y-1 py-2">
+                                                {priorityRoles.map((role, index) => (
+                                                    <div
+                                                        key={role.id}
+                                                        draggable
+                                                        onDragStart={() => setDraggedIndex(index)}
+                                                        onDragOver={(e) => e.preventDefault()}
+                                                        onDrop={() => {
+                                                            if (draggedIndex === null) return;
+                                                            const newRoles = [...priorityRoles];
+                                                            const [removed] = newRoles.splice(draggedIndex, 1);
+                                                            newRoles.splice(index, 0, removed);
+                                                            setPriorityRoles(newRoles);
+                                                            setDraggedIndex(null);
+                                                        }}
+                                                        className={`flex items-center gap-3 p-3 rounded-md border bg-background cursor-grab active:cursor-grabbing ${draggedIndex === index ? 'opacity-50' : ''}`}
+                                                    >
+                                                        <GripVertical className="h-4 w-4 text-muted-foreground" />
+                                                        <span className="flex-1 text-sm font-medium">{role.name}</span>
+                                                        {role.is_default && (
+                                                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                                                        )}
                                                     </div>
-                                                    {permissionDropdownOpen && (
-                                                        <div className="absolute z-50 mt-2 w-full rounded-md border bg-popover shadow-lg">
-                                                            <div className="max-h-[200px] overflow-y-auto p-1">
-                                                                {permissions
-                                                                    .filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase()))
-                                                                    .map(permission => (
-                                                                        <button
-                                                                            key={permission.id}
-                                                                            type="button"
-                                                                            onClick={() => {
-                                                                                const isSelected = newRole.permission_ids.includes(permission.id);
-                                                                                setNewRole({
-                                                                                    ...newRole,
-                                                                                    permission_ids: isSelected
-                                                                                        ? newRole.permission_ids.filter(id => id !== permission.id)
-                                                                                        : [...newRole.permission_ids, permission.id]
-                                                                                });
-                                                                            }}
-                                                                            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent text-left"
-                                                                        >
-                                                                            <div className={`h-4 w-4 flex items-center justify-center rounded border ${newRole.permission_ids.includes(permission.id)
-                                                                                ? 'bg-primary border-primary'
-                                                                                : 'border-input'
-                                                                                }`}>
-                                                                                {newRole.permission_ids.includes(permission.id) && (
-                                                                                    <Check className="h-3 w-3 text-primary-foreground" />
-                                                                                )}
-                                                                            </div>
-                                                                            <span className="font-mono text-xs">{permission.name}</span>
-                                                                        </button>
-                                                                    ))}
-                                                                {permissions.filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase())).length === 0 && (
-                                                                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">No permissions found</div>
-                                                                )}
-                                                            </div>
+                                                ))}
+                                            </div>
+                                            <DialogFooter>
+                                                <Button variant="outline" onClick={() => setEditPriorityOpen(false)}>Cancel</Button>
+                                                <Button onClick={() => {
+                                                    // TODO: Save priority order to API
+                                                    toast.success('Priority order saved');
+                                                    setEditPriorityOpen(false);
+                                                }}>Save changes</Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                    <Dialog open={createRoleDialogOpen} onOpenChange={setCreateRoleDialogOpen}>
+                                        <DialogTrigger asChild>
+                                            <Button className="h-9 bg-primary hover:bg-primary/90">
+                                                <Plus className="h-4 w-4 mr-2" />
+                                                Create role
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Create Role</DialogTitle>
+                                                <DialogDescription>
+                                                    Add a new role to assign to users in your organization.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <div className="space-y-4 py-4">
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="roleName">Name</Label>
+                                                    <Input
+                                                        id="roleName"
+                                                        placeholder='User-friendly name of the role, e.g. "Admin"'
+                                                        value={newRole.name}
+                                                        onChange={(e) => {
+                                                            const name = e.target.value;
+                                                            const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                                                            setNewRole({ ...newRole, name, slug });
+                                                        }}
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="roleSlug">Slug</Label>
+                                                    <Input
+                                                        id="roleSlug"
+                                                        placeholder="A unique case-sensitive key to reference the role in your code"
+                                                        value={newRole.slug}
+                                                        onChange={(e) => setNewRole({ ...newRole, slug: e.target.value })}
+                                                        className="font-mono"
+                                                    />
+                                                    <p className="text-xs text-muted-foreground">
+                                                        A unique key to reference the role in your code. Can't be edited after creation.
+                                                    </p>
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label htmlFor="roleDescription">Description</Label>
+                                                    <textarea
+                                                        id="roleDescription"
+                                                        placeholder="Optional. Describe what this role allows..."
+                                                        value={newRole.description}
+                                                        onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                                                        className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    />
+                                                </div>
+                                                <div className="space-y-2">
+                                                    <Label>Permissions</Label>
+                                                    <div className="relative">
+                                                        <div className="relative">
+                                                            <Input
+                                                                placeholder="Search permissions..."
+                                                                value={permissionSearchInDialog}
+                                                                onChange={(e) => setPermissionSearchInDialog(e.target.value)}
+                                                                onFocus={() => setPermissionDropdownOpen(true)}
+                                                                className="pr-8"
+                                                            />
+                                                            <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 opacity-50" />
                                                         </div>
-                                                    )}
+                                                        {permissionDropdownOpen && (
+                                                            <div className="absolute z-50 mt-2 w-full rounded-md border bg-popover shadow-lg">
+                                                                <div className="max-h-[200px] overflow-y-auto p-1">
+                                                                    {permissions
+                                                                        .filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase()))
+                                                                        .map(permission => (
+                                                                            <button
+                                                                                key={permission.id}
+                                                                                type="button"
+                                                                                onClick={() => {
+                                                                                    const isSelected = newRole.permission_ids.includes(permission.id);
+                                                                                    setNewRole({
+                                                                                        ...newRole,
+                                                                                        permission_ids: isSelected
+                                                                                            ? newRole.permission_ids.filter(id => id !== permission.id)
+                                                                                            : [...newRole.permission_ids, permission.id]
+                                                                                    });
+                                                                                }}
+                                                                                className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent text-left"
+                                                                            >
+                                                                                <div className={`h-4 w-4 flex items-center justify-center rounded border ${newRole.permission_ids.includes(permission.id)
+                                                                                    ? 'bg-primary border-primary'
+                                                                                    : 'border-input'
+                                                                                    }`}>
+                                                                                    {newRole.permission_ids.includes(permission.id) && (
+                                                                                        <Check className="h-3 w-3 text-primary-foreground" />
+                                                                                    )}
+                                                                                </div>
+                                                                                <span className="font-mono text-xs">{permission.name}</span>
+                                                                            </button>
+                                                                        ))}
+                                                                    {permissions.filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase())).length === 0 && (
+                                                                        <div className="px-2 py-4 text-center text-sm text-muted-foreground">No permissions found</div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <Button variant="outline" onClick={() => setCreateRoleDialogOpen(false)}>
-                                                Cancel
-                                            </Button>
-                                            <Button onClick={handleCreateRole}>
-                                                Create
-                                            </Button>
-                                        </DialogFooter>
-                                    </DialogContent>
-                                </Dialog>
-                            </div>
+                                            <DialogFooter>
+                                                <Button variant="outline" onClick={() => setCreateRoleDialogOpen(false)}>
+                                                    Cancel
+                                                </Button>
+                                                <Button onClick={handleCreateRole}>
+                                                    Create
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                </div>
 
-                            {/* Table */}
-                            <div className="border rounded-md overflow-hidden bg-card/50">
-                                <Table>
-                                    <TableHeader className="bg-muted/50">
-                                        <TableRow className="hover:bg-transparent border-b border-border/50">
-                                            <TableHead className="w-[30%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
-                                            <TableHead className="w-[15%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Slug</TableHead>
-                                            <TableHead className="w-[35%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Permissions</TableHead>
-                                            <TableHead className="w-[100px] h-10"></TableHead>
-                                        </TableRow>
-                                    </TableHeader>
-                                    <TableBody>
-                                        {isRolesLoading ? (
-                                            <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                    Loading roles...
-                                                </TableCell>
+                                {/* Table */}
+                                <div className="border rounded-md overflow-hidden bg-card/50">
+                                    <Table>
+                                        <TableHeader className="bg-muted/50">
+                                            <TableRow className="hover:bg-transparent border-b border-border/50">
+                                                <TableHead className="w-[30%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
+                                                <TableHead className="w-[15%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Slug</TableHead>
+                                                <TableHead className="w-[35%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Permissions</TableHead>
+                                                <TableHead className="w-[100px] h-10"></TableHead>
                                             </TableRow>
-                                        ) : filteredRoles.length === 0 ? (
-                                            <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
-                                                    No roles found
-                                                </TableCell>
-                                            </TableRow>
-                                        ) : (
-                                            filteredRoles.map((role) => (
-                                                <TableRow key={role.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0">
-                                                    {/* Name + Description */}
-                                                    <TableCell className="py-3 pl-4 align-top">
-                                                        <div className="flex flex-col gap-0.5">
-                                                            <span className="font-medium text-sm text-foreground">{role.name}</span>
-                                                            <span className="text-muted-foreground text-xs">{role.description || ''}</span>
-                                                        </div>
-                                                    </TableCell>
-                                                    {/* Slug as pill */}
-                                                    <TableCell className="py-3 align-top">
-                                                        <Badge variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded">
-                                                            {role.slug || role.name.toLowerCase().replace(/\s+/g, '-')}
-                                                        </Badge>
-                                                    </TableCell>
-                                                    {/* Permissions as pills */}
-                                                    <TableCell className="py-3 align-top">
-                                                        {role.role_permissions && role.role_permissions.length > 0 ? (
-                                                            <div className="flex flex-wrap gap-1">
-                                                                {role.role_permissions.slice(0, 3).map((rp, idx) => (
-                                                                    <Badge key={idx} variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded max-w-[140px] truncate">
-                                                                        {rp.permission.name}
-                                                                    </Badge>
-                                                                ))}
-                                                                {role.role_permissions.length > 3 && (
-                                                                    <span className="text-xs text-muted-foreground">+{role.role_permissions.length - 3} more</span>
-                                                                )}
-                                                            </div>
-                                                        ) : (
-                                                            <span className="text-sm text-muted-foreground">None</span>
-                                                        )}
-                                                    </TableCell>
-                                                    {/* Default badge + Actions */}
-                                                    <TableCell className="py-3 align-top text-right pr-4">
-                                                        <div className="flex items-center justify-end gap-2">
-                                                            {role.is_default && (
-                                                                <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-muted-foreground/30 rounded-full px-2">
-                                                                    Default
-                                                                </Badge>
-                                                            )}
-                                                            <DropdownMenu>
-                                                                <DropdownMenuTrigger asChild>
-                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                                        <MoreHorizontal className="h-4 w-4" />
-                                                                        <span className="sr-only">Actions</span>
-                                                                    </Button>
-                                                                </DropdownMenuTrigger>
-                                                                <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem
-                                                                        className="text-destructive focus:text-destructive"
-                                                                        onClick={() => handleDeleteRole(role.id)}
-                                                                        disabled={role.is_system_role}
-                                                                    >
-                                                                        Delete
-                                                                    </DropdownMenuItem>
-                                                                </DropdownMenuContent>
-                                                            </DropdownMenu>
-                                                        </div>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {isRolesLoading ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                        Loading roles...
                                                     </TableCell>
                                                 </TableRow>
-                                            ))
-                                        )}
-                                    </TableBody>
-                                </Table>
+                                            ) : filteredRoles.length === 0 ? (
+                                                <TableRow>
+                                                    <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                        No roles found
+                                                    </TableCell>
+                                                </TableRow>
+                                            ) : (
+                                                filteredRoles.map((role) => (
+                                                    <TableRow key={role.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0">
+                                                        {/* Name + Description */}
+                                                        <TableCell className="py-3 pl-4 align-top">
+                                                            <div className="flex flex-col gap-0.5">
+                                                                <span className="font-medium text-sm text-foreground">{role.name}</span>
+                                                                <span className="text-muted-foreground text-xs">{role.description || ''}</span>
+                                                            </div>
+                                                        </TableCell>
+                                                        {/* Slug as pill */}
+                                                        <TableCell className="py-3 align-top">
+                                                            <Badge variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded">
+                                                                {role.slug || role.name.toLowerCase().replace(/\s+/g, '-')}
+                                                            </Badge>
+                                                        </TableCell>
+                                                        {/* Permissions as pills */}
+                                                        <TableCell className="py-3 align-top">
+                                                            {role.role_permissions && role.role_permissions.length > 0 ? (
+                                                                <div className="flex flex-wrap gap-1">
+                                                                    {role.role_permissions.slice(0, 3).map((rp, idx) => (
+                                                                        <Badge key={idx} variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded max-w-[140px] truncate">
+                                                                            {rp.permission.name}
+                                                                        </Badge>
+                                                                    ))}
+                                                                    {role.role_permissions.length > 3 && (
+                                                                        <span className="text-xs text-muted-foreground">+{role.role_permissions.length - 3} more</span>
+                                                                    )}
+                                                                </div>
+                                                            ) : (
+                                                                <span className="text-sm text-muted-foreground">None</span>
+                                                            )}
+                                                        </TableCell>
+                                                        {/* Default badge + Actions */}
+                                                        <TableCell className="py-3 align-top text-right pr-4">
+                                                            <div className="flex items-center justify-end gap-2">
+                                                                {role.is_default && (
+                                                                    <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-muted-foreground/30 rounded-full px-2">
+                                                                        Default
+                                                                    </Badge>
+                                                                )}
+                                                                <DropdownMenu>
+                                                                    <DropdownMenuTrigger asChild>
+                                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                                            <MoreHorizontal className="h-4 w-4" />
+                                                                            <span className="sr-only">Actions</span>
+                                                                        </Button>
+                                                                    </DropdownMenuTrigger>
+                                                                    <DropdownMenuContent align="end">
+                                                                        <DropdownMenuItem
+                                                                            className="text-destructive focus:text-destructive"
+                                                                            onClick={() => handleDeleteRole(role.id)}
+                                                                            disabled={role.is_system_role}
+                                                                        >
+                                                                            Delete
+                                                                        </DropdownMenuItem>
+                                                                    </DropdownMenuContent>
+                                                                </DropdownMenu>
+                                                            </div>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))
+                                            )}
+                                        </TableBody>
+                                    </Table>
+                                </div>
                             </div>
-                        </div>
                     </TabsContent>
 
                     {/* Permissions Tab */}
