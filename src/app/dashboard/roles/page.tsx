@@ -29,7 +29,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Plus } from 'lucide-react';
+import { Search, MoreHorizontal, Plus, ChevronDown, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Permission {
@@ -72,7 +72,10 @@ export default function RolesPage() {
         name: '',
         slug: '',
         description: '',
+        permission_ids: [] as string[],
     });
+    const [permissionDropdownOpen, setPermissionDropdownOpen] = useState(false);
+    const [permissionSearchInDialog, setPermissionSearchInDialog] = useState('');
 
     // Fetch roles
     const fetchRoles = async () => {
@@ -159,14 +162,22 @@ export default function RolesPage() {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ ...newRole, org_id: orgId, slug: newRole.slug || newRole.name.toLowerCase().replace(/\s+/g, '-') }),
+                    body: JSON.stringify({
+                        name: newRole.name,
+                        slug: newRole.slug || newRole.name.toLowerCase().replace(/\s+/g, '-'),
+                        description: newRole.description,
+                        org_id: orgId,
+                        permission_ids: newRole.permission_ids
+                    }),
                 }
             );
 
             if (response.ok) {
                 toast.success('Role created');
                 setCreateRoleDialogOpen(false);
-                setNewRole({ name: '', slug: '', description: '' });
+                setNewRole({ name: '', slug: '', description: '', permission_ids: [] });
+                setPermissionDropdownOpen(false);
+                setPermissionSearchInDialog('');
                 fetchRoles();
             } else {
                 const data = await response.json();
@@ -343,7 +354,7 @@ export default function RolesPage() {
                                                 <Label htmlFor="roleName">Name</Label>
                                                 <Input
                                                     id="roleName"
-                                                    placeholder="e.g., Editor, Viewer, Manager"
+                                                    placeholder='User-friendly name of the role, e.g. "Admin"'
                                                     value={newRole.name}
                                                     onChange={(e) => {
                                                         const name = e.target.value;
@@ -356,20 +367,86 @@ export default function RolesPage() {
                                                 <Label htmlFor="roleSlug">Slug</Label>
                                                 <Input
                                                     id="roleSlug"
-                                                    placeholder="e.g., editor, viewer"
+                                                    placeholder="A unique case-sensitive key to reference the role in your code"
                                                     value={newRole.slug}
                                                     onChange={(e) => setNewRole({ ...newRole, slug: e.target.value })}
                                                     className="font-mono"
                                                 />
+                                                <p className="text-xs text-muted-foreground">
+                                                    A unique key to reference the role in your code. Can't be edited after creation.
+                                                </p>
                                             </div>
                                             <div className="space-y-2">
                                                 <Label htmlFor="roleDescription">Description</Label>
-                                                <Input
+                                                <textarea
                                                     id="roleDescription"
-                                                    placeholder="What can users with this role do?"
+                                                    placeholder="Optional. Describe what this role allows..."
                                                     value={newRole.description}
                                                     onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                                                    className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                                 />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Permissions</Label>
+                                                <div className="relative">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setPermissionDropdownOpen(!permissionDropdownOpen)}
+                                                        className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+                                                    >
+                                                        <span className={newRole.permission_ids.length === 0 ? 'text-muted-foreground' : ''}>
+                                                            {newRole.permission_ids.length === 0
+                                                                ? 'Search permissions...'
+                                                                : `${newRole.permission_ids.length} permission${newRole.permission_ids.length !== 1 ? 's' : ''} selected`}
+                                                        </span>
+                                                        <ChevronDown className="h-4 w-4 opacity-50" />
+                                                    </button>
+                                                    {permissionDropdownOpen && (
+                                                        <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
+                                                            <div className="p-2 border-b">
+                                                                <Input
+                                                                    placeholder="Search permissions..."
+                                                                    value={permissionSearchInDialog}
+                                                                    onChange={(e) => setPermissionSearchInDialog(e.target.value)}
+                                                                    className="h-8"
+                                                                />
+                                                            </div>
+                                                            <div className="max-h-[200px] overflow-y-auto p-1">
+                                                                {permissions
+                                                                    .filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase()))
+                                                                    .map(permission => (
+                                                                        <button
+                                                                            key={permission.id}
+                                                                            type="button"
+                                                                            onClick={() => {
+                                                                                const isSelected = newRole.permission_ids.includes(permission.id);
+                                                                                setNewRole({
+                                                                                    ...newRole,
+                                                                                    permission_ids: isSelected
+                                                                                        ? newRole.permission_ids.filter(id => id !== permission.id)
+                                                                                        : [...newRole.permission_ids, permission.id]
+                                                                                });
+                                                                            }}
+                                                                            className="flex w-full items-center gap-2 rounded-sm px-2 py-1.5 text-sm hover:bg-accent text-left"
+                                                                        >
+                                                                            <div className={`h-4 w-4 flex items-center justify-center rounded border ${newRole.permission_ids.includes(permission.id)
+                                                                                ? 'bg-primary border-primary'
+                                                                                : 'border-input'
+                                                                                }`}>
+                                                                                {newRole.permission_ids.includes(permission.id) && (
+                                                                                    <Check className="h-3 w-3 text-primary-foreground" />
+                                                                                )}
+                                                                            </div>
+                                                                            <span className="font-mono text-xs">{permission.name}</span>
+                                                                        </button>
+                                                                    ))}
+                                                                {permissions.filter(p => p.name.toLowerCase().includes(permissionSearchInDialog.toLowerCase())).length === 0 && (
+                                                                    <div className="px-2 py-4 text-center text-sm text-muted-foreground">No permissions found</div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <DialogFooter>
