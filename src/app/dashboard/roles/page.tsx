@@ -405,7 +405,7 @@ export default function RolesPage() {
                                                         <div className="absolute z-50 mt-1 w-full rounded-md border bg-popover shadow-lg">
                                                             <div className="p-2 border-b">
                                                                 <Input
-                                                                    placeholder="Search permissions..."
+                                                                    placeholder="Search..."
                                                                     value={permissionSearchInDialog}
                                                                     onChange={(e) => setPermissionSearchInDialog(e.target.value)}
                                                                     className="h-8"
