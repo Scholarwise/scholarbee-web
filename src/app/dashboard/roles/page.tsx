@@ -384,13 +384,6 @@ export default function RolesPage() {
                                                 <Button onClick={async () => {
                                                     try {
                                                         const token = localStorage.getItem('token');
-                                                        const activeOrg = JSON.parse(localStorage.getItem('activeOrg') || '{}');
-                                                        const orgId = activeOrg?.id;
-
-                                                        if (!orgId) {
-                                                            toast.error('No organization selected');
-                                                            return;
-                                                        }
 
                                                         const response = await fetch(
                                                             `${process.env.NEXT_PUBLIC_API_URL}/api/roles/priority`,
@@ -402,7 +395,6 @@ export default function RolesPage() {
                                                                 },
                                                                 body: JSON.stringify({
                                                                     role_ids: priorityRoles.map(r => r.id),
-                                                                    org_id: orgId,
                                                                 }),
                                                             }
                                                         );
