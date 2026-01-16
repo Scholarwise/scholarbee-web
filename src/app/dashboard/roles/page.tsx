@@ -41,37 +41,59 @@ interface Permission {
     created_at: string;
 }
 
+interface Role {
+    id: string;
+    name: string;
+    description: string | null;
+    org_id: string | null;
+    is_system_role: boolean;
+    role_permissions?: { permission: { name: string } }[];
+    created_at?: string;
+}
+
 export default function RolesPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [permissionSearch, setPermissionSearch] = useState('');
     const [permissions, setPermissions] = useState<Permission[]>([]);
+    const [roles, setRoles] = useState<Role[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    const [isRolesLoading, setIsRolesLoading] = useState(false);
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
+    const [createRoleDialogOpen, setCreateRoleDialogOpen] = useState(false);
     const [newPermission, setNewPermission] = useState({
         name: '',
         description: '',
         resource_type: '',
         action: '',
     });
+    const [newRole, setNewRole] = useState({
+        name: '',
+        description: '',
+    });
 
-    const roles = [
-        {
-            id: '1',
-            name: 'Member',
-            description: 'The default user role',
-            slug: 'member',
-            permissions: [],
-            isSystem: true
-        },
-        {
-            id: '2',
-            name: 'Admin',
-            description: 'Access to manage all available resources',
-            slug: 'admin',
-            permissions: [],
-            isSystem: true
-        },
-    ];
+    // Fetch roles
+    const fetchRoles = async () => {
+        setIsRolesLoading(true);
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/roles`,
+                {
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+            if (response.ok) {
+                const data = await response.json();
+                setRoles(data.roles || []);
+            }
+        } catch (error) {
+            console.error('Failed to fetch roles:', error);
+        } finally {
+            setIsRolesLoading(false);
+        }
+    };
 
     // Fetch permissions
     const fetchPermissions = async () => {
@@ -99,7 +121,84 @@ export default function RolesPage() {
 
     useEffect(() => {
         fetchPermissions();
+        fetchRoles();
     }, []);
+
+    // Filter roles by search
+    const filteredRoles = roles.filter(r =>
+        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.description?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    // Create role handler
+    const handleCreateRole = async () => {
+        if (!newRole.name) {
+            toast.error('Role name is required');
+            return;
+        }
+
+        try {
+            const token = localStorage.getItem('token');
+            // Get active org from localStorage
+            const activeOrg = JSON.parse(localStorage.getItem('activeOrg') || '{}');
+            const orgId = activeOrg?.id;
+
+            if (!orgId) {
+                toast.error('No organization selected');
+                return;
+            }
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/roles`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ ...newRole, org_id: orgId }),
+                }
+            );
+
+            if (response.ok) {
+                toast.success('Role created');
+                setCreateRoleDialogOpen(false);
+                setNewRole({ name: '', description: '' });
+                fetchRoles();
+            } else {
+                const data = await response.json();
+                toast.error(data.error || 'Failed to create role');
+            }
+        } catch (error) {
+            toast.error('Failed to create role');
+        }
+    };
+
+    // Delete role handler
+    const handleDeleteRole = async (id: string) => {
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${id}`,
+                {
+                    method: 'DELETE',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                    },
+                }
+            );
+
+            if (response.ok) {
+                toast.success('Role deleted');
+                fetchRoles();
+            } else {
+                const data = await response.json();
+                toast.error(data.error || 'Failed to delete role');
+            }
+        } catch (error) {
+            toast.error('Failed to delete role');
+        }
+    };
 
     // Filter permissions by search
     const filteredPermissions = permissions.filter(p =>
@@ -222,14 +321,50 @@ export default function RolesPage() {
                                         className="pl-9 h-10 bg-muted/20 border-input/50 focus-visible:bg-background transition-colors"
                                     />
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <Button variant="outline" className="h-9">
-                                        Edit priority
-                                    </Button>
-                                    <Button className="h-9 bg-primary hover:bg-primary/90">
-                                        Create role
-                                    </Button>
-                                </div>
+                                <Dialog open={createRoleDialogOpen} onOpenChange={setCreateRoleDialogOpen}>
+                                    <DialogTrigger asChild>
+                                        <Button className="h-9 bg-primary hover:bg-primary/90">
+                                            <Plus className="h-4 w-4 mr-2" />
+                                            Create role
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent>
+                                        <DialogHeader>
+                                            <DialogTitle>Create Role</DialogTitle>
+                                            <DialogDescription>
+                                                Add a new role to assign to users in your organization.
+                                            </DialogDescription>
+                                        </DialogHeader>
+                                        <div className="space-y-4 py-4">
+                                            <div className="space-y-2">
+                                                <Label htmlFor="roleName">Name</Label>
+                                                <Input
+                                                    id="roleName"
+                                                    placeholder="e.g., Editor, Viewer, Manager"
+                                                    value={newRole.name}
+                                                    onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="roleDescription">Description</Label>
+                                                <Input
+                                                    id="roleDescription"
+                                                    placeholder="What can users with this role do?"
+                                                    value={newRole.description}
+                                                    onChange={(e) => setNewRole({ ...newRole, description: e.target.value })}
+                                                />
+                                            </div>
+                                        </div>
+                                        <DialogFooter>
+                                            <Button variant="outline" onClick={() => setCreateRoleDialogOpen(false)}>
+                                                Cancel
+                                            </Button>
+                                            <Button onClick={handleCreateRole}>
+                                                Create
+                                            </Button>
+                                        </DialogFooter>
+                                    </DialogContent>
+                                </Dialog>
                             </div>
 
                             {/* Table */}
@@ -237,42 +372,68 @@ export default function RolesPage() {
                                 <Table>
                                     <TableHeader className="bg-muted/50">
                                         <TableRow className="hover:bg-transparent border-b border-border/50">
-                                            <TableHead className="w-[30%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
-                                            <TableHead className="w-[20%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Slug</TableHead>
-                                            <TableHead className="h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Permissions</TableHead>
-                                            <TableHead className="w-[100px] h-10"></TableHead>
+                                            <TableHead className="w-[35%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
+                                            <TableHead className="w-[25%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Permissions</TableHead>
+                                            <TableHead className="w-[20%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground"></TableHead>
+                                            <TableHead className="w-[80px] h-10"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                        {roles.map((role) => (
-                                            <TableRow key={role.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0 h-[53px]">
-                                                <TableCell className="py-2 pl-4 align-middle">
-                                                    <div className="flex flex-col gap-0.5">
-                                                        <span className="font-medium text-sm text-foreground leading-tight">{role.name}</span>
-                                                        <span className="text-muted-foreground text-[11px] leading-tight">{role.description}</span>
-                                                    </div>
-                                                </TableCell>
-                                                <TableCell className="py-2 align-middle">
-                                                    <Badge variant="secondary" className="font-mono text-[11px] rounded-sm bg-secondary/50 text-foreground border-transparent px-1.5 py-0.5 font-medium">
-                                                        {role.slug}
-                                                    </Badge>
-                                                </TableCell>
-                                                <TableCell className="py-2 align-middle">
-                                                    <span className="text-sm text-muted-foreground">None</span>
-                                                </TableCell>
-                                                <TableCell className="py-2 align-middle text-right pr-4">
-                                                    <div className="flex items-center justify-end gap-2">
-                                                        <Badge variant="outline" className="text-xs font-normal text-muted-foreground h-6 border-muted-foreground/30">
-                                                            Default
-                                                        </Badge>
-                                                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                            <span className="sr-only">Actions</span>
-                                                        </Button>
-                                                    </div>
+                                        {isRolesLoading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                    Loading roles...
                                                 </TableCell>
                                             </TableRow>
-                                        ))}
+                                        ) : filteredRoles.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                    No roles found
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : (
+                                            filteredRoles.map((role) => (
+                                                <TableRow key={role.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0 h-[53px]">
+                                                    <TableCell className="py-2 pl-4 align-middle">
+                                                        <div className="flex flex-col gap-0.5">
+                                                            <span className="font-medium text-sm text-foreground leading-tight">{role.name}</span>
+                                                            <span className="text-muted-foreground text-[11px] leading-tight">{role.description || 'No description'}</span>
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell className="py-2 align-middle">
+                                                        <span className="text-sm text-muted-foreground">
+                                                            {role.role_permissions?.length || 0} permission{(role.role_permissions?.length || 0) !== 1 ? 's' : ''}
+                                                        </span>
+                                                    </TableCell>
+                                                    <TableCell className="py-2 align-middle">
+                                                        {role.is_system_role && (
+                                                            <Badge variant="outline" className="text-xs font-normal text-muted-foreground h-6 border-muted-foreground/30">
+                                                                System
+                                                            </Badge>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="py-2 align-middle text-right pr-4">
+                                                        <DropdownMenu>
+                                                            <DropdownMenuTrigger asChild>
+                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                    <span className="sr-only">Actions</span>
+                                                                </Button>
+                                                            </DropdownMenuTrigger>
+                                                            <DropdownMenuContent align="end">
+                                                                <DropdownMenuItem
+                                                                    className="text-destructive focus:text-destructive"
+                                                                    onClick={() => handleDeleteRole(role.id)}
+                                                                    disabled={role.is_system_role}
+                                                                >
+                                                                    Delete
+                                                                </DropdownMenuItem>
+                                                            </DropdownMenuContent>
+                                                        </DropdownMenu>
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))
+                                        )}
                                     </TableBody>
                                 </Table>
                             </div>
