@@ -44,10 +44,12 @@ interface Permission {
 interface Role {
     id: string;
     name: string;
+    slug?: string;
     description: string | null;
     org_id: string | null;
     is_system_role: boolean;
-    role_permissions?: { permission: { name: string } }[];
+    is_default?: boolean;
+    role_permissions?: { permission: { name: string; description?: string } }[];
     created_at?: string;
 }
 
@@ -68,6 +70,7 @@ export default function RolesPage() {
     });
     const [newRole, setNewRole] = useState({
         name: '',
+        slug: '',
         description: '',
     });
 
@@ -156,14 +159,14 @@ export default function RolesPage() {
                         'Authorization': `Bearer ${token}`,
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ ...newRole, org_id: orgId }),
+                    body: JSON.stringify({ ...newRole, org_id: orgId, slug: newRole.slug || newRole.name.toLowerCase().replace(/\s+/g, '-') }),
                 }
             );
 
             if (response.ok) {
                 toast.success('Role created');
                 setCreateRoleDialogOpen(false);
-                setNewRole({ name: '', description: '' });
+                setNewRole({ name: '', slug: '', description: '' });
                 fetchRoles();
             } else {
                 const data = await response.json();
@@ -342,7 +345,21 @@ export default function RolesPage() {
                                                     id="roleName"
                                                     placeholder="e.g., Editor, Viewer, Manager"
                                                     value={newRole.name}
-                                                    onChange={(e) => setNewRole({ ...newRole, name: e.target.value })}
+                                                    onChange={(e) => {
+                                                        const name = e.target.value;
+                                                        const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+                                                        setNewRole({ ...newRole, name, slug });
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label htmlFor="roleSlug">Slug</Label>
+                                                <Input
+                                                    id="roleSlug"
+                                                    placeholder="e.g., editor, viewer"
+                                                    value={newRole.slug}
+                                                    onChange={(e) => setNewRole({ ...newRole, slug: e.target.value })}
+                                                    className="font-mono"
                                                 />
                                             </div>
                                             <div className="space-y-2">
@@ -372,10 +389,10 @@ export default function RolesPage() {
                                 <Table>
                                     <TableHeader className="bg-muted/50">
                                         <TableRow className="hover:bg-transparent border-b border-border/50">
-                                            <TableHead className="w-[35%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
-                                            <TableHead className="w-[25%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Permissions</TableHead>
-                                            <TableHead className="w-[20%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground"></TableHead>
-                                            <TableHead className="w-[80px] h-10"></TableHead>
+                                            <TableHead className="w-[30%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
+                                            <TableHead className="w-[15%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Slug</TableHead>
+                                            <TableHead className="w-[35%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Permissions</TableHead>
+                                            <TableHead className="w-[100px] h-10"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
@@ -393,43 +410,63 @@ export default function RolesPage() {
                                             </TableRow>
                                         ) : (
                                             filteredRoles.map((role) => (
-                                                <TableRow key={role.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0 h-[53px]">
-                                                    <TableCell className="py-2 pl-4 align-middle">
+                                                <TableRow key={role.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0">
+                                                    {/* Name + Description */}
+                                                    <TableCell className="py-3 pl-4 align-top">
                                                         <div className="flex flex-col gap-0.5">
-                                                            <span className="font-medium text-sm text-foreground leading-tight">{role.name}</span>
-                                                            <span className="text-muted-foreground text-[11px] leading-tight">{role.description || 'No description'}</span>
+                                                            <span className="font-medium text-sm text-foreground">{role.name}</span>
+                                                            <span className="text-muted-foreground text-xs">{role.description || ''}</span>
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="py-2 align-middle">
-                                                        <span className="text-sm text-muted-foreground">
-                                                            {role.role_permissions?.length || 0} permission{(role.role_permissions?.length || 0) !== 1 ? 's' : ''}
-                                                        </span>
+                                                    {/* Slug as pill */}
+                                                    <TableCell className="py-3 align-top">
+                                                        <Badge variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded">
+                                                            {role.slug || role.name.toLowerCase().replace(/\s+/g, '-')}
+                                                        </Badge>
                                                     </TableCell>
-                                                    <TableCell className="py-2 align-middle">
-                                                        {role.is_system_role && (
-                                                            <Badge variant="outline" className="text-xs font-normal text-muted-foreground h-6 border-muted-foreground/30">
-                                                                System
-                                                            </Badge>
+                                                    {/* Permissions as pills */}
+                                                    <TableCell className="py-3 align-top">
+                                                        {role.role_permissions && role.role_permissions.length > 0 ? (
+                                                            <div className="flex flex-wrap gap-1">
+                                                                {role.role_permissions.slice(0, 3).map((rp, idx) => (
+                                                                    <Badge key={idx} variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded max-w-[140px] truncate">
+                                                                        {rp.permission.name}
+                                                                    </Badge>
+                                                                ))}
+                                                                {role.role_permissions.length > 3 && (
+                                                                    <span className="text-xs text-muted-foreground">+{role.role_permissions.length - 3} more</span>
+                                                                )}
+                                                            </div>
+                                                        ) : (
+                                                            <span className="text-sm text-muted-foreground">None</span>
                                                         )}
                                                     </TableCell>
-                                                    <TableCell className="py-2 align-middle text-right pr-4">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                    <span className="sr-only">Actions</span>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem
-                                                                    className="text-destructive focus:text-destructive"
-                                                                    onClick={() => handleDeleteRole(role.id)}
-                                                                    disabled={role.is_system_role}
-                                                                >
-                                                                    Delete
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
+                                                    {/* Default badge + Actions */}
+                                                    <TableCell className="py-3 align-top text-right pr-4">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            {role.is_default && (
+                                                                <Badge variant="outline" className="text-xs font-normal text-muted-foreground border-muted-foreground/30 rounded-full px-2">
+                                                                    Default
+                                                                </Badge>
+                                                            )}
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                        <span className="sr-only">Actions</span>
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem
+                                                                        className="text-destructive focus:text-destructive"
+                                                                        onClick={() => handleDeleteRole(role.id)}
+                                                                        disabled={role.is_system_role}
+                                                                    >
+                                                                        Delete
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             ))
@@ -536,65 +573,69 @@ export default function RolesPage() {
                                 <Table>
                                     <TableHeader className="bg-muted/50">
                                         <TableRow className="hover:bg-transparent border-b border-border/50">
-                                            <TableHead className="w-[40%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
-                                            <TableHead className="w-[30%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Slug</TableHead>
-                                            <TableHead className="w-[15%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground"></TableHead>
-                                            <TableHead className="w-[80px] h-10"></TableHead>
+                                            <TableHead className="w-[45%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground pl-4">Name</TableHead>
+                                            <TableHead className="w-[35%] h-10 text-xs font-medium uppercase tracking-wider text-muted-foreground">Slug</TableHead>
+                                            <TableHead className="w-[100px] h-10"></TableHead>
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                                                     Loading permissions...
                                                 </TableCell>
                                             </TableRow>
                                         ) : filteredPermissions.length === 0 ? (
                                             <TableRow>
-                                                <TableCell colSpan={4} className="text-center py-8 text-muted-foreground">
+                                                <TableCell colSpan={3} className="text-center py-8 text-muted-foreground">
                                                     No permissions found
                                                 </TableCell>
                                             </TableRow>
                                         ) : (
                                             filteredPermissions.map((permission) => (
-                                                <TableRow key={permission.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0 h-[53px]">
-                                                    <TableCell className="py-2 pl-4 align-middle">
+                                                <TableRow key={permission.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0">
+                                                    {/* Name + Description */}
+                                                    <TableCell className="py-3 pl-4 align-top">
                                                         <div className="flex flex-col gap-0.5">
-                                                            <span className="font-medium text-sm text-foreground leading-tight capitalize">
-                                                                {permission.description || permission.name.replace(/[._:]/g, ' ')}
+                                                            <span className="font-medium text-sm text-foreground">
+                                                                {permission.description || permission.name.replace(/[._:]/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                             </span>
-                                                            <span className="text-muted-foreground text-[11px] leading-tight">
-                                                                {permission.description ? '' : `${permission.resource_type || 'N/A'} → ${permission.action || 'N/A'}`}
-                                                            </span>
+                                                            {permission.description && (
+                                                                <span className="text-muted-foreground text-xs">
+                                                                    {`${permission.resource_type || ''}.${permission.action || ''}`.replace(/^\./, '')}
+                                                                </span>
+                                                            )}
                                                         </div>
                                                     </TableCell>
-                                                    <TableCell className="py-2 align-middle">
-                                                        <Badge variant="secondary" className="font-mono text-[11px] rounded-sm bg-secondary/50 text-foreground border-transparent px-1.5 py-0.5 font-medium">
+                                                    {/* Slug as pill */}
+                                                    <TableCell className="py-3 align-top">
+                                                        <Badge variant="secondary" className="font-mono text-xs bg-muted text-muted-foreground border-0 px-2 py-0.5 rounded">
                                                             {permission.name}
                                                         </Badge>
                                                     </TableCell>
-                                                    <TableCell className="py-2 align-middle">
-                                                        <Badge variant="outline" className="text-xs font-normal text-muted-foreground h-6 border-muted-foreground/30">
-                                                            System
-                                                        </Badge>
-                                                    </TableCell>
-                                                    <TableCell className="py-2 align-middle text-right pr-4">
-                                                        <DropdownMenu>
-                                                            <DropdownMenuTrigger asChild>
-                                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                                                    <MoreHorizontal className="h-4 w-4" />
-                                                                    <span className="sr-only">Actions</span>
-                                                                </Button>
-                                                            </DropdownMenuTrigger>
-                                                            <DropdownMenuContent align="end">
-                                                                <DropdownMenuItem
-                                                                    className="text-destructive focus:text-destructive"
-                                                                    onClick={() => handleDeletePermission(permission.id)}
-                                                                >
-                                                                    Delete
-                                                                </DropdownMenuItem>
-                                                            </DropdownMenuContent>
-                                                        </DropdownMenu>
+                                                    {/* System badge + Actions */}
+                                                    <TableCell className="py-3 align-top text-right pr-4">
+                                                        <div className="flex items-center justify-end gap-2">
+                                                            <Badge variant="secondary" className="text-xs font-normal bg-muted/80 text-muted-foreground border-0 px-2">
+                                                                System
+                                                            </Badge>
+                                                            <DropdownMenu>
+                                                                <DropdownMenuTrigger asChild>
+                                                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                                                        <MoreHorizontal className="h-4 w-4" />
+                                                                        <span className="sr-only">Actions</span>
+                                                                    </Button>
+                                                                </DropdownMenuTrigger>
+                                                                <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem
+                                                                        className="text-destructive focus:text-destructive"
+                                                                        onClick={() => handleDeletePermission(permission.id)}
+                                                                    >
+                                                                        Delete
+                                                                    </DropdownMenuItem>
+                                                                </DropdownMenuContent>
+                                                            </DropdownMenu>
+                                                        </div>
                                                     </TableCell>
                                                 </TableRow>
                                             ))
