@@ -14,14 +14,15 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import { ChevronLeft, ChevronRight, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Check, Calendar, Clock, Plus, X } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 
 const steps = [
     { id: 1, title: 'Basic Details', description: 'Enter the main information for the exam' },
     { id: 2, title: 'Settings', description: 'Configure duration and attempts' },
-    { id: 3, title: 'Review', description: 'Review and confirm details' },
+    { id: 3, title: 'Scheduling', description: 'Add exam date and time slots' },
+    { id: 4, title: 'Review', description: 'Review and confirm details' },
 ];
 
 export default function CreateExamPage() {
@@ -43,6 +44,17 @@ export default function CreateExamPage() {
         maxAttempts: 1,
         status: 'draft',
     });
+
+    // Scheduling slots state
+    interface ExamSlot {
+        date: string;
+        startTime: string;
+        endTime: string;
+    }
+    const [slots, setSlots] = useState<ExamSlot[]>([]);
+    const [newSlotDate, setNewSlotDate] = useState('');
+    const [newSlotStart, setNewSlotStart] = useState('09:00');
+    const [newSlotEnd, setNewSlotEnd] = useState('11:00');
 
     React.useEffect(() => {
         const userData = localStorage.getItem('user');
@@ -98,6 +110,40 @@ export default function CreateExamPage() {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    // Slot management functions
+    const addSlot = () => {
+        if (!newSlotDate) {
+            toast.error('Please select a date');
+            return;
+        }
+        if (newSlotStart >= newSlotEnd) {
+            toast.error('End time must be after start time');
+            return;
+        }
+        // Check for duplicate slot
+        const exists = slots.some(
+            s => s.date === newSlotDate && s.startTime === newSlotStart
+        );
+        if (exists) {
+            toast.error('This slot already exists');
+            return;
+        }
+        setSlots(prev => [...prev, { date: newSlotDate, startTime: newSlotStart, endTime: newSlotEnd }]);
+        // Reset inputs for next slot
+        setNewSlotStart('09:00');
+        setNewSlotEnd('11:00');
+    };
+
+    const removeSlot = (index: number) => {
+        setSlots(prev => prev.filter((_, i) => i !== index));
+    };
+
+    // Format date for display
+    const formatDate = (dateStr: string) => {
+        const date = new Date(dateStr + 'T00:00:00');
+        return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    };
+
     const handleNext = () => {
         if (currentStep < steps.length) {
             setCurrentStep(prev => prev + 1);
@@ -128,7 +174,8 @@ export default function CreateExamPage() {
                 duration: Number(formData.duration),
                 passingPercentage: Number(formData.passingPercentage),
                 maxAttempts: Number(formData.maxAttempts),
-                status: formData.status
+                status: formData.status,
+                slots: slots,
             };
 
             const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/exams`, {
@@ -328,9 +375,103 @@ export default function CreateExamPage() {
                         )
                     }
 
-                    {/* Step 3: Review */}
+                    {/* Step 3: Scheduling */}
                     {
                         currentStep === 3 && (
+                            <div className="flex flex-col gap-6">
+                                {/* Add new slot form */}
+                                <div className="grid gap-4 p-4 border rounded-md bg-muted/10">
+                                    <div className="flex items-center gap-2 text-sm font-medium">
+                                        <Calendar className="h-4 w-4" />
+                                        Add Time Slot
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-4">
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="slotDate">Date</Label>
+                                            <Input
+                                                id="slotDate"
+                                                type="date"
+                                                value={newSlotDate}
+                                                onChange={(e) => setNewSlotDate(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="slotStart">Start Time</Label>
+                                            <Input
+                                                id="slotStart"
+                                                type="time"
+                                                value={newSlotStart}
+                                                onChange={(e) => setNewSlotStart(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                        <div className="grid gap-2">
+                                            <Label htmlFor="slotEnd">End Time</Label>
+                                            <Input
+                                                id="slotEnd"
+                                                type="time"
+                                                value={newSlotEnd}
+                                                onChange={(e) => setNewSlotEnd(e.target.value)}
+                                                className="h-8"
+                                            />
+                                        </div>
+                                    </div>
+                                    <Button type="button" variant="outline" onClick={addSlot} className="w-fit h-8">
+                                        <Plus className="mr-2 h-4 w-4" />
+                                        Add Slot
+                                    </Button>
+                                </div>
+
+                                {/* Display added slots */}
+                                {slots.length > 0 ? (
+                                    <div className="space-y-3">
+                                        <div className="text-sm font-medium text-muted-foreground">
+                                            Scheduled Slots ({slots.length})
+                                        </div>
+                                        <div className="grid gap-2">
+                                            {slots.map((slot, index) => (
+                                                <div
+                                                    key={index}
+                                                    className="flex items-center justify-between p-3 border rounded-md bg-background hover:bg-muted/20 transition-colors"
+                                                >
+                                                    <div className="flex items-center gap-4">
+                                                        <div className="flex items-center gap-2 text-sm">
+                                                            <Calendar className="h-4 w-4 text-muted-foreground" />
+                                                            <span className="font-medium">{formatDate(slot.date)}</span>
+                                                        </div>
+                                                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                                            <Clock className="h-4 w-4" />
+                                                            <span>{slot.startTime} - {slot.endTime}</span>
+                                                        </div>
+                                                    </div>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => removeSlot(index)}
+                                                        className="h-7 w-7 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                                                    >
+                                                        <X className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center p-8 border border-dashed rounded-md text-muted-foreground">
+                                        <Calendar className="h-8 w-8 mb-2 opacity-50" />
+                                        <p className="text-sm">No slots added yet</p>
+                                        <p className="text-xs">Add dates and times when this exam will be available</p>
+                                    </div>
+                                )}
+                            </div>
+                        )
+                    }
+
+                    {/* Step 4: Review */}
+                    {
+                        currentStep === 4 && (
                             <div className="flex flex-col gap-6">
                                 <div className="grid gap-4 p-4 border rounded-md bg-muted/20">
                                     <div className="grid grid-cols-2 gap-4">
@@ -371,6 +512,21 @@ export default function CreateExamPage() {
                                         <p className="text-lg font-semibold mt-1">{formData.maxAttempts}</p>
                                     </div>
                                 </div>
+
+                                {/* Scheduled Slots */}
+                                {slots.length > 0 && (
+                                    <div className="space-y-2">
+                                        <span className="text-xs text-muted-foreground font-medium uppercase">Scheduled Slots ({slots.length})</span>
+                                        <div className="grid gap-2 max-h-32 overflow-y-auto">
+                                            {slots.map((slot, idx) => (
+                                                <div key={idx} className="flex items-center gap-4 text-sm p-2 border rounded bg-muted/10">
+                                                    <span className="font-medium">{formatDate(slot.date)}</span>
+                                                    <span className="text-muted-foreground">{slot.startTime} - {slot.endTime}</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         )
                     }
@@ -381,7 +537,7 @@ export default function CreateExamPage() {
                         <ChevronLeft className="mr-2 h-4 w-4" />
                         Back
                     </Button>
-                    {currentStep === 3 ? (
+                    {currentStep === 4 ? (
                         <Button onClick={handleSubmit} className="h-8">
                             Create Exam
                             <Check className="ml-2 h-4 w-4" />
