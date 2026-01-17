@@ -29,7 +29,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Plus, ChevronDown, Check, GripVertical, Pencil, CircleCheck, Trash2 } from 'lucide-react';
+import { Search, MoreHorizontal, Plus, ChevronDown, Check, GripVertical, Pencil, CircleCheck, Trash2, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Permission {
@@ -416,7 +416,19 @@ export default function RolesPage() {
                                             </DialogHeader>
                                             <p className="text-sm text-muted-foreground">Drag roles to change the priority, from highest to lowest.</p>
                                             <div className="space-y-1 py-2">
-                                                {priorityRoles.map((role, index) => (
+                                                {/* Super admin always at top, non-draggable */}
+                                                {priorityRoles.filter(r => r.slug === 'super_admin' || r.name === 'super_admin').map((role) => (
+                                                    <div
+                                                        key={role.id}
+                                                        className="flex items-center gap-3 p-3 rounded-md border bg-muted/50 opacity-60"
+                                                    >
+                                                        <Lock className="h-4 w-4 text-muted-foreground" />
+                                                        <span className="flex-1 text-sm font-medium text-muted-foreground">{role.name}</span>
+                                                        <Badge variant="secondary" className="text-xs">Top Priority</Badge>
+                                                    </div>
+                                                ))}
+                                                {/* Other roles - draggable */}
+                                                {priorityRoles.filter(r => r.slug !== 'super_admin' && r.name !== 'super_admin').map((role, index) => (
                                                     <div
                                                         key={role.id}
                                                         draggable
@@ -424,10 +436,11 @@ export default function RolesPage() {
                                                         onDragOver={(e) => e.preventDefault()}
                                                         onDrop={() => {
                                                             if (draggedIndex === null) return;
-                                                            const newRoles = [...priorityRoles];
-                                                            const [removed] = newRoles.splice(draggedIndex, 1);
-                                                            newRoles.splice(index, 0, removed);
-                                                            setPriorityRoles(newRoles);
+                                                            const draggableRoles = priorityRoles.filter(r => r.slug !== 'super_admin' && r.name !== 'super_admin');
+                                                            const superAdmin = priorityRoles.find(r => r.slug === 'super_admin' || r.name === 'super_admin');
+                                                            const [removed] = draggableRoles.splice(draggedIndex, 1);
+                                                            draggableRoles.splice(index, 0, removed);
+                                                            setPriorityRoles(superAdmin ? [superAdmin, ...draggableRoles] : draggableRoles);
                                                             setDraggedIndex(null);
                                                         }}
                                                         className={`flex items-center gap-3 p-3 rounded-md border bg-background cursor-grab active:cursor-grabbing ${draggedIndex === index ? 'opacity-50' : ''}`}
