@@ -138,9 +138,7 @@ export default function ExamsPage() {
                                     {exam.createdAt}
                                 </TableCell>
                                 <TableCell className="py-2 align-middle text-right pr-4">
-                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
-                                        <ChevronRight className="h-4 w-4" />
-                                    </Button>
+                                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                                 </TableCell>
                             </TableRow>
                         ))}
