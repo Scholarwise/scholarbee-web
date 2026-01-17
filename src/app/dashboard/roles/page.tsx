@@ -95,7 +95,7 @@ export default function RolesPage() {
     const fetchRoles = async () => {
         setIsRolesLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/roles`,
                 {
@@ -119,7 +119,7 @@ export default function RolesPage() {
     const fetchPermissions = async () => {
         setIsLoading(true);
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/permissions`,
                 {
@@ -158,7 +158,7 @@ export default function RolesPage() {
         }
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             // Get active org from localStorage
             const activeOrg = JSON.parse(localStorage.getItem('activeOrg') || '{}');
             const orgId = activeOrg?.id;
@@ -205,7 +205,7 @@ export default function RolesPage() {
     // Delete role handler
     const handleDeleteRole = async (id: string) => {
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${id}`,
                 {
@@ -242,7 +242,7 @@ export default function RolesPage() {
         }
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/permissions`,
                 {
@@ -272,7 +272,7 @@ export default function RolesPage() {
     // Delete permission handler
     const handleDeletePermission = async (id: string) => {
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/permissions/${id}`,
                 {
@@ -313,7 +313,7 @@ export default function RolesPage() {
         if (!editingRole) return;
 
         try {
-            const token = localStorage.getItem('token');
+            const token = localStorage.getItem('access_token');
             const response = await fetch(
                 `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${editingRole.id}`,
                 {
@@ -444,7 +444,7 @@ export default function RolesPage() {
                                                 <Button variant="outline" onClick={() => setEditPriorityOpen(false)}>Cancel</Button>
                                                 <Button onClick={async () => {
                                                     try {
-                                                        const token = localStorage.getItem('token');
+                                                        const token = localStorage.getItem('access_token');
 
                                                         const response = await fetch(
                                                             `${process.env.NEXT_PUBLIC_API_URL}/api/roles/priority`,
