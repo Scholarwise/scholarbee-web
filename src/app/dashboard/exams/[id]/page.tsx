@@ -47,6 +47,7 @@ export default function ExamDetailPage() {
     const [exam, setExam] = useState<Exam | null>(null);
     const [loading, setLoading] = useState(true);
     const [deleting, setDeleting] = useState(false);
+    const [isSuperAdmin, setIsSuperAdmin] = useState(false);
 
     useEffect(() => {
         const fetchExam = async () => {
@@ -54,6 +55,23 @@ export default function ExamDetailPage() {
                 const token = localStorage.getItem('access_token');
                 const headers: Record<string, string> = {};
                 if (token) headers['Authorization'] = `Bearer ${token}`;
+
+                // Check for super_admin role
+                try {
+                    const userStr = localStorage.getItem('user');
+                    if (userStr) {
+                        const user = JSON.parse(userStr);
+                        if (user.roles && Array.isArray(user.roles)) {
+                            const hasSuperAdmin = user.roles.some(
+                                (r: { role_name?: string; name?: string }) =>
+                                    r.role_name === 'super_admin' || r.name === 'super_admin'
+                            );
+                            if (hasSuperAdmin) setIsSuperAdmin(true);
+                        }
+                    }
+                } catch (e) {
+                    console.error('User data parse failed', e);
+                }
 
                 const response = await fetch(
                     `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/exams/${params.id}`,
@@ -164,32 +182,34 @@ export default function ExamDetailPage() {
                 <Badge className={`${getStatusColor(exam.status)} font-normal`}>
                     {exam.status}
                 </Badge>
-                <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="h-8">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete
-                        </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                        <AlertDialogHeader>
-                            <AlertDialogTitle>Delete Exam</AlertDialogTitle>
-                            <AlertDialogDescription>
-                                Are you sure you want to delete &quot;{exam.title}&quot;? This will also delete all scheduled slots. This action cannot be undone.
-                            </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                                onClick={handleDelete}
-                                disabled={deleting}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                                {deleting ? 'Deleting...' : 'Delete'}
-                            </AlertDialogAction>
-                        </AlertDialogFooter>
-                    </AlertDialogContent>
-                </AlertDialog>
+                {isSuperAdmin && (
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm" className="h-8">
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete
+                            </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader>
+                                <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Are you sure you want to delete &quot;{exam.title}&quot;? This will also delete all scheduled slots. This action cannot be undone.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                    onClick={handleDelete}
+                                    disabled={deleting}
+                                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                    {deleting ? 'Deleting...' : 'Delete'}
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                )}
             </div>
 
             {/* Content */}
