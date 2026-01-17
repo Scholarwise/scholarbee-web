@@ -29,7 +29,7 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Search, MoreHorizontal, Plus, ChevronDown, Check, GripVertical } from 'lucide-react';
+import { Search, MoreHorizontal, Plus, ChevronDown, Check, GripVertical, Pencil, CircleCheck, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Permission {
@@ -605,12 +605,24 @@ export default function RolesPage() {
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
+                                                                    <DropdownMenuItem onClick={() => toast.info('Edit role coming soon')}>
+                                                                        <Pencil className="mr-2 h-4 w-4" />
+                                                                        Edit role
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => toast.info('Set as default coming soon')}
+                                                                        disabled={role.is_default}
+                                                                    >
+                                                                        <CircleCheck className="mr-2 h-4 w-4" />
+                                                                        Set as default
+                                                                    </DropdownMenuItem>
                                                                     <DropdownMenuItem
                                                                         className="text-destructive focus:text-destructive"
                                                                         onClick={() => handleDeleteRole(role.id)}
-                                                                        disabled={role.is_system_role}
+                                                                        disabled={role.is_system_role || role.is_default}
                                                                     >
-                                                                        Delete
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Delete role
                                                                     </DropdownMenuItem>
                                                                 </DropdownMenuContent>
                                                             </DropdownMenu>
