@@ -104,7 +104,11 @@ export default function ExamsPage() {
                     </TableHeader>
                     <TableBody>
                         {exams.map((exam) => (
-                            <TableRow key={exam.id} className="hover:bg-muted/40 border-b border-border/50 last:border-0 h-[53px]">
+                            <TableRow
+                                key={exam.id}
+                                className="hover:bg-muted/40 border-b border-border/50 last:border-0 h-[53px] cursor-pointer"
+                                onClick={() => router.push(`/dashboard/exams/${exam.id}`)}
+                            >
                                 <TableCell className="py-2 pl-4 align-middle font-medium text-sm text-foreground">
                                     <div className="flex items-center gap-3">
                                         <div className="flex items-center justify-center h-8 w-8 rounded-lg bg-muted text-muted-foreground">
@@ -143,6 +147,6 @@ export default function ExamsPage() {
                     </TableBody>
                 </Table>
             </div>
-        </div>
+        </div >
     );
 }
