@@ -680,7 +680,7 @@ export default function RolesPage() {
                                                                     <DropdownMenuItem
                                                                         className="text-destructive focus:text-destructive"
                                                                         onClick={() => handleDeleteRole(role.id)}
-                                                                        disabled={role.is_system_role || role.is_default}
+                                                                        disabled={role.slug === 'super_admin' || role.is_default}
                                                                     >
                                                                         <Trash2 className="mr-2 h-4 w-4" />
                                                                         Delete role
