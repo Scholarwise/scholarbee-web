@@ -5,7 +5,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, ClipboardList, Calendar, Clock, Users, Settings } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { toast } from 'sonner';
+import { ArrowLeft, ClipboardList, Calendar, Clock, Users, Settings, Trash2 } from 'lucide-react';
 
 interface ExamSlot {
     id: string;
@@ -34,6 +46,7 @@ export default function ExamDetailPage() {
     const router = useRouter();
     const [exam, setExam] = useState<Exam | null>(null);
     const [loading, setLoading] = useState(true);
+    const [deleting, setDeleting] = useState(false);
 
     useEffect(() => {
         const fetchExam = async () => {
@@ -83,6 +96,33 @@ export default function ExamDetailPage() {
         }
     };
 
+    const handleDelete = async () => {
+        setDeleting(true);
+        try {
+            const token = localStorage.getItem('access_token');
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080'}/api/exams/${params.id}`,
+                { method: 'DELETE', headers }
+            );
+
+            if (response.ok) {
+                toast.success('Exam deleted successfully');
+                router.push('/dashboard/exams');
+            } else {
+                const data = await response.json();
+                toast.error(data.error || 'Failed to delete exam');
+            }
+        } catch (error) {
+            console.error('Error deleting exam:', error);
+            toast.error('Failed to delete exam');
+        } finally {
+            setDeleting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div className="flex items-center justify-center h-[calc(100vh-4rem)]">
@@ -124,6 +164,32 @@ export default function ExamDetailPage() {
                 <Badge className={`${getStatusColor(exam.status)} font-normal`}>
                     {exam.status}
                 </Badge>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="sm" className="h-8">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Delete Exam</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Are you sure you want to delete &quot;{exam.title}&quot;? This will also delete all scheduled slots. This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                                onClick={handleDelete}
+                                disabled={deleting}
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                                {deleting ? 'Deleting...' : 'Delete'}
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
 
             {/* Content */}
