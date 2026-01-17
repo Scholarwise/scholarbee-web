@@ -80,6 +80,17 @@ export default function RolesPage() {
     const [priorityRoles, setPriorityRoles] = useState<Role[]>([]);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
 
+    // Edit role state
+    const [editRoleDialogOpen, setEditRoleDialogOpen] = useState(false);
+    const [editingRole, setEditingRole] = useState<Role | null>(null);
+    const [editRoleForm, setEditRoleForm] = useState({
+        name: '',
+        description: '',
+        permission_ids: [] as string[],
+    });
+    const [editPermissionDropdownOpen, setEditPermissionDropdownOpen] = useState(false);
+    const [editPermissionSearch, setEditPermissionSearch] = useState('');
+
     // Fetch roles
     const fetchRoles = async () => {
         setIsRolesLoading(true);
@@ -280,6 +291,56 @@ export default function RolesPage() {
             }
         } catch (error) {
             toast.error('Failed to delete permission');
+        }
+    };
+
+    // Open edit role dialog
+    const openEditRole = (role: Role) => {
+        setEditingRole(role);
+        // Extract permission IDs from role_permissions
+        const permIds = (role.role_permissions || []).map((rp: any) => rp.permission_id || rp.permission?.id).filter(Boolean);
+        setEditRoleForm({
+            name: role.name,
+            description: role.description || '',
+            permission_ids: permIds,
+        });
+        setEditPermissionSearch('');
+        setEditRoleDialogOpen(true);
+    };
+
+    // Update role handler
+    const handleUpdateRole = async () => {
+        if (!editingRole) return;
+
+        try {
+            const token = localStorage.getItem('token');
+            const response = await fetch(
+                `${process.env.NEXT_PUBLIC_API_URL}/api/roles/${editingRole.id}`,
+                {
+                    method: 'PATCH',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        name: editRoleForm.name,
+                        description: editRoleForm.description,
+                        permission_ids: editRoleForm.permission_ids,
+                    }),
+                }
+            );
+
+            if (response.ok) {
+                toast.success('Role updated');
+                setEditRoleDialogOpen(false);
+                setEditingRole(null);
+                fetchRoles();
+            } else {
+                const data = await response.json();
+                toast.error(data.error || 'Failed to update role');
+            }
+        } catch (error) {
+            toast.error('Failed to update role');
         }
     };
 
@@ -605,7 +666,7 @@ export default function RolesPage() {
                                                                     </Button>
                                                                 </DropdownMenuTrigger>
                                                                 <DropdownMenuContent align="end">
-                                                                    <DropdownMenuItem onClick={() => toast.info('Edit role coming soon')}>
+                                                                    <DropdownMenuItem onClick={() => openEditRole(role)}>
                                                                         <Pencil className="mr-2 h-4 w-4" />
                                                                         Edit role
                                                                     </DropdownMenuItem>
@@ -819,6 +880,124 @@ export default function RolesPage() {
                     </TabsContent>
                 </div>
             </Tabs>
+
+            {/* Edit Role Dialog */}
+            <Dialog open={editRoleDialogOpen} onOpenChange={setEditRoleDialogOpen}>
+                <DialogContent className="sm:max-w-[500px]">
+                    <DialogHeader>
+                        <DialogTitle>Edit role</DialogTitle>
+                        <DialogDescription>
+                            Configure the role's details and permissions.
+                        </DialogDescription>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        {/* Name */}
+                        <div className="grid gap-2">
+                            <label htmlFor="edit-name" className="text-sm font-medium">Name</label>
+                            <Input
+                                id="edit-name"
+                                value={editRoleForm.name}
+                                onChange={(e) => setEditRoleForm({ ...editRoleForm, name: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Slug (disabled) */}
+                        <div className="grid gap-2">
+                            <label htmlFor="edit-slug" className="text-sm font-medium">Slug</label>
+                            <Input
+                                id="edit-slug"
+                                value={editingRole?.slug || ''}
+                                disabled
+                                className="bg-muted text-muted-foreground"
+                            />
+                            <p className="text-xs text-muted-foreground">
+                                A unique key to reference the role in your code.
+                            </p>
+                        </div>
+
+                        {/* Description */}
+                        <div className="grid gap-2">
+                            <label htmlFor="edit-description" className="text-sm font-medium">Description</label>
+                            <textarea
+                                id="edit-description"
+                                className="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                value={editRoleForm.description}
+                                onChange={(e) => setEditRoleForm({ ...editRoleForm, description: e.target.value })}
+                            />
+                        </div>
+
+                        {/* Permissions dropdown */}
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Permissions</label>
+                            <div className="relative">
+                                <Input
+                                    placeholder={editRoleForm.permission_ids.length === 0 ? "Select permissions..." : `${editRoleForm.permission_ids.length} permission${editRoleForm.permission_ids.length > 1 ? 's' : ''} selected`}
+                                    value={editPermissionSearch}
+                                    onChange={(e) => setEditPermissionSearch(e.target.value)}
+                                    onFocus={() => setEditPermissionDropdownOpen(true)}
+                                    className="pr-8"
+                                />
+                                <ChevronDown className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                {editPermissionDropdownOpen && (
+                                    <div className="absolute z-50 w-full mt-1 border rounded-md bg-popover shadow-lg max-h-48 overflow-y-auto">
+                                        {permissions
+                                            .filter(p => p.name.toLowerCase().includes(editPermissionSearch.toLowerCase()))
+                                            .map((permission) => (
+                                                <div
+                                                    key={permission.id}
+                                                    className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-accent"
+                                                    onClick={() => {
+                                                        const isSelected = editRoleForm.permission_ids.includes(permission.id);
+                                                        setEditRoleForm({
+                                                            ...editRoleForm,
+                                                            permission_ids: isSelected
+                                                                ? editRoleForm.permission_ids.filter((id) => id !== permission.id)
+                                                                : [...editRoleForm.permission_ids, permission.id]
+                                                        });
+                                                    }}
+                                                >
+                                                    <div className={`h-4 w-4 border rounded flex items-center justify-center ${editRoleForm.permission_ids.includes(permission.id) ? 'bg-primary border-primary' : 'border-input'}`}>
+                                                        {editRoleForm.permission_ids.includes(permission.id) && <Check className="h-3 w-3 text-primary-foreground" />}
+                                                    </div>
+                                                    <span className="text-sm">{permission.name}</span>
+                                                </div>
+                                            ))}
+                                        {permissions.filter(p => p.name.toLowerCase().includes(editPermissionSearch.toLowerCase())).length === 0 && (
+                                            <div className="px-3 py-2 text-sm text-muted-foreground">No permissions found</div>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                            {/* Selected permissions pills */}
+                            {editRoleForm.permission_ids.length > 0 && (
+                                <div className="flex flex-wrap gap-1 mt-2">
+                                    {editRoleForm.permission_ids.map((id) => {
+                                        const perm = permissions.find(p => p.id === id);
+                                        return perm ? (
+                                            <Badge key={id} variant="secondary" className="text-xs">
+                                                {perm.name}
+                                                <button
+                                                    className="ml-1 hover:text-destructive"
+                                                    onClick={() => setEditRoleForm({
+                                                        ...editRoleForm,
+                                                        permission_ids: editRoleForm.permission_ids.filter(pid => pid !== id)
+                                                    })}
+                                                >
+                                                    ×
+                                                </button>
+                                            </Badge>
+                                        ) : null;
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="outline" onClick={() => setEditRoleDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleUpdateRole} disabled={!editRoleForm.name}>Save changes</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     );
 }
