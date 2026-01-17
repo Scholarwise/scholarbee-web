@@ -81,6 +81,35 @@ export function AppSidebar() {
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
 
+    // Use organizations from context (cached at app level)
+    const { organizations, activeOrg, isLoading: isLoadingOrgs, setActiveOrg } = useOrganizations();
+
+    // Check if user is super_admin and if currently viewing System org
+    const isSuperAdmin = React.useMemo(() => {
+        try {
+            const user = JSON.parse(localStorage.getItem('user') || '{}');
+            const roles = user.roles || user.user_metadata?.roles || [];
+            return roles.some((r: any) =>
+                r.role_name === 'super_admin' || r.name === 'super_admin' || r === 'super_admin'
+            );
+        } catch {
+            return false;
+        }
+    }, []);
+
+    const isSystemOrg = activeOrg?.slug === 'system' || activeOrg?.name === 'System';
+
+    // Filter admin nav items based on permissions
+    const filteredAdminNavItems = React.useMemo(() => {
+        return adminNavItems.filter(item => {
+            // Roles & Permissions only visible for super_admin in System org
+            if (item.title === 'Roles & Permissions') {
+                return isSuperAdmin && isSystemOrg;
+            }
+            return true;
+        });
+    }, [isSuperAdmin, isSystemOrg]);
+
     const handleLogout = () => {
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
@@ -122,9 +151,6 @@ export function AppSidebar() {
             return 'User';
         }
     };
-
-    // Use organizations from context (cached at app level)
-    const { organizations, activeOrg, isLoading: isLoadingOrgs, setActiveOrg } = useOrganizations();
 
     // Switch warning state
     const [showSwitchDialog, setShowSwitchDialog] = React.useState(false);
@@ -241,7 +267,7 @@ export function AppSidebar() {
                     <SidebarGroupLabel>Administration</SidebarGroupLabel>
                     <SidebarGroupContent>
                         <SidebarMenu>
-                            {adminNavItems.map((item) => (
+                            {filteredAdminNavItems.map((item) => (
                                 <SidebarMenuItem key={item.title}>
                                     <SidebarMenuButton
                                         asChild
