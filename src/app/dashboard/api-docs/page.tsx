@@ -8,17 +8,12 @@ export default function ApiDocsPage() {
         <div className="flex flex-col h-[calc(100vh-4rem)]">
             <ApiReferenceReact
                 configuration={{
-                    spec: {
-                        url: 'https://raw.githubusercontent.com/Scholarwise/scholarbee-monorepo/main/api/openapi.yaml',
-                    },
+                    url: 'https://raw.githubusercontent.com/Scholarwise/scholarbee-monorepo/main/api/openapi.yaml',
                     theme: 'purple',
                     darkMode: true,
                     hideModels: false,
                     showSidebar: true,
                     layout: 'modern',
-                    metaData: {
-                        title: 'ScholarBee API Reference',
-                    },
                 }}
             />
         </div>
