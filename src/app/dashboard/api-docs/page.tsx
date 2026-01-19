@@ -5,15 +5,13 @@ import '@scalar/api-reference-react/style.css';
 
 export default function ApiDocsPage() {
     return (
-        <div className="flex flex-col h-[calc(100vh-4rem)]">
+        <div className="h-full w-full">
             <ApiReferenceReact
                 configuration={{
                     url: '/openapi.yaml',
                     theme: 'purple',
                     darkMode: true,
-                    hideModels: false,
-                    showSidebar: true,
-                    layout: 'modern',
+                    layout: 'classic',
                 }}
             />
         </div>
