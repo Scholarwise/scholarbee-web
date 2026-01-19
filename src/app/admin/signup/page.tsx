@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Loader2, AlertCircle } from 'lucide-react';
+import { Shield, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const ADMIN_DOMAIN = 'myndloop.com';
@@ -13,7 +13,7 @@ const ADMIN_DOMAIN = 'myndloop.com';
 function AdminSignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
-    const isPending = searchParams.get('pending') === 'true';
+    const isSuccess = searchParams.get('success') === 'true';
     const error = searchParams.get('error');
 
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -51,35 +51,31 @@ function AdminSignupContent() {
         );
     }
 
-    // Success/Pending state
-    if (isPending) {
+    // Registration success state
+    if (isSuccess) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
                 <Card className="w-full max-w-md">
                     <CardHeader className="space-y-1 text-center">
-                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
-                            <Shield className="h-8 w-8 text-amber-600 dark:text-amber-400" />
+                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                            <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                         </div>
-                        <CardTitle className="text-2xl font-bold">Pending Approval</CardTitle>
+                        <CardTitle className="text-2xl font-bold">Registration Successful!</CardTitle>
                         <CardDescription className="text-base">
-                            Your account is awaiting approval from an administrator.
+                            Your admin account has been created successfully.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground">
-                            <p className="mb-2">
-                                <strong>Need immediate access?</strong>
-                            </p>
                             <p>
-                                Contact an existing admin to expedite your approval, or try signing in again later.
+                                You can now sign in to access the ScholarBee admin dashboard.
                             </p>
                         </div>
                         <Button
                             className="w-full"
-                            variant="outline"
                             onClick={() => router.push('/login')}
                         >
-                            Back to Login
+                            Go to Login
                         </Button>
                     </CardContent>
                 </Card>
