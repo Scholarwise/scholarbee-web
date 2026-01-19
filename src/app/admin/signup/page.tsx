@@ -1,75 +1,43 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { UserPlus, Loader2, AlertCircle, Building2 } from 'lucide-react';
+import { Shield, Loader2, CheckCircle } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+const ADMIN_DOMAIN = 'myndloop.com';
 
-interface InvitationData {
-    valid: boolean;
-    email: string;
-    org_id: string;
-    org_name: string;
-    role_id: string;
-    role_name: string;
-}
-
-function SignupContent() {
+export default function AdminSignupPage() {
     const router = useRouter();
-    const searchParams = useSearchParams();
-    const token = searchParams.get('token');
-
     const [isLoading, setIsLoading] = useState(false);
-    const [isValidating, setIsValidating] = useState(true);
-    const [invitation, setInvitation] = useState<InvitationData | null>(null);
-    const [error, setError] = useState<string | null>(null);
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     const [formData, setFormData] = useState({
+        email: '',
         password: '',
         confirmPassword: '',
         firstName: '',
         lastName: '',
     });
 
-    // Validate invitation token on load
-    useEffect(() => {
-        const validateToken = async () => {
-            if (!token) {
-                setError('No invitation token provided. Please use an invitation link to sign up.');
-                setIsValidating(false);
-                return;
-            }
-
-            try {
-                const response = await fetch(`${API_BASE_URL}/api/invitations/validate/${token}`);
-                const data = await response.json();
-
-                if (!response.ok) {
-                    setError(data.error || 'Invalid invitation');
-                    setIsValidating(false);
-                    return;
-                }
-
-                setInvitation(data);
-            } catch {
-                setError('Failed to validate invitation. Please try again.');
-            } finally {
-                setIsValidating(false);
-            }
-        };
-
-        validateToken();
-    }, [token]);
+    const validateEmail = (email: string) => {
+        const domain = email.split('@')[1]?.toLowerCase();
+        return domain === ADMIN_DOMAIN;
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        if (!validateEmail(formData.email)) {
+            toast.error(`Only @${ADMIN_DOMAIN} email addresses are allowed`);
+            return;
+        }
 
         if (formData.password !== formData.confirmPassword) {
             toast.error('Passwords do not match');
@@ -84,17 +52,14 @@ function SignupContent() {
         setIsLoading(true);
 
         try {
-            const response = await fetch(`${API_BASE_URL}/api/auth/register`, {
+            const response = await fetch(`${API_BASE_URL}/api/auth/admin-register`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    email: invitation?.email,
+                    email: formData.email,
                     password: formData.password,
-                    invitation_token: token,
-                    data: {
-                        first_name: formData.firstName,
-                        last_name: formData.lastName,
-                    },
+                    first_name: formData.firstName,
+                    last_name: formData.lastName,
                 }),
             });
 
@@ -104,9 +69,7 @@ function SignupContent() {
                 throw new Error(data.error || data.msg || 'Registration failed');
             }
 
-            localStorage.setItem('pending_email', invitation?.email || '');
-            toast.success('Check your email for a verification code!');
-            router.push(`/verify-email?email=${encodeURIComponent(invitation?.email || '')}`);
+            setIsSubmitted(true);
         } catch (error) {
             toast.error(error instanceof Error ? error.message : 'Registration failed');
         } finally {
@@ -114,47 +77,38 @@ function SignupContent() {
         }
     };
 
-    // Loading state
-    if (isValidating) {
-        return (
-            <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
-                <Card className="w-full max-w-md">
-                    <CardContent className="flex flex-col items-center justify-center py-12">
-                        <Loader2 className="h-8 w-8 animate-spin text-primary mb-4" />
-                        <p className="text-muted-foreground">Validating invitation...</p>
-                    </CardContent>
-                </Card>
-            </div>
-        );
-    }
-
-    // Error state
-    if (error) {
+    // Success state
+    if (isSubmitted) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
                 <Card className="w-full max-w-md">
                     <CardHeader className="space-y-1 text-center">
-                        <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-destructive/10 flex items-center justify-center">
-                            <AlertCircle className="h-6 w-6 text-destructive" />
+                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
+                            <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
                         </div>
-                        <CardTitle className="text-2xl font-bold">Invalid Invitation</CardTitle>
-                        <CardDescription>{error}</CardDescription>
+                        <CardTitle className="text-2xl font-bold">Registration Submitted</CardTitle>
+                        <CardDescription className="text-base">
+                            Your admin account request has been submitted successfully.
+                        </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground">
-                            <p>
-                                If you believe this is an error, please contact your organization
-                                administrator to request a new invitation.
+                            <p className="mb-2">
+                                <strong>What happens next?</strong>
                             </p>
+                            <ul className="list-disc list-inside space-y-1">
+                                <li>A super admin will review your request</li>
+                                <li>You&apos;ll receive a verification email</li>
+                                <li>Once approved, you can log in with full admin access</li>
+                            </ul>
                         </div>
-                        <div className="flex gap-2">
-                            <Button variant="outline" className="flex-1" onClick={() => router.push('/login')}>
-                                Go to Login
-                            </Button>
-                            <Button variant="outline" className="flex-1" onClick={() => router.push('/admin/signup')}>
-                                Admin Signup
-                            </Button>
-                        </div>
+                        <Button
+                            className="w-full"
+                            variant="outline"
+                            onClick={() => router.push('/login')}
+                        >
+                            Go to Login
+                        </Button>
                     </CardContent>
                 </Card>
             </div>
@@ -166,31 +120,19 @@ function SignupContent() {
             <Card className="w-full max-w-md">
                 <CardHeader className="space-y-1 text-center">
                     <div className="mx-auto mb-4 h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                        <UserPlus className="h-6 w-6 text-primary-foreground" />
+                        <Shield className="h-6 w-6 text-primary-foreground" />
                     </div>
-                    <CardTitle className="text-2xl font-bold">Complete Your Signup</CardTitle>
+                    <CardTitle className="text-2xl font-bold">Admin Registration</CardTitle>
                     <CardDescription>
-                        You&apos;ve been invited to join ScholarBee
+                        Create a super admin account for ScholarBee
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    {/* Invitation details */}
-                    <div className="rounded-lg border bg-muted/50 p-4 mb-6">
-                        <div className="flex items-center gap-3 mb-3">
-                            <div className="h-10 w-10 rounded-full bg-primary/10 flex items-center justify-center">
-                                <Building2 className="h-5 w-5 text-primary" />
-                            </div>
-                            <div>
-                                <p className="font-medium">{invitation?.org_name}</p>
-                                <p className="text-sm text-muted-foreground">
-                                    Role: {invitation?.role_name || 'Member'}
-                                </p>
-                            </div>
-                        </div>
-                        <div className="text-sm">
-                            <span className="text-muted-foreground">Email: </span>
-                            <span className="font-medium">{invitation?.email}</span>
-                        </div>
+                    <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50 p-3 mb-6">
+                        <p className="text-sm text-amber-800 dark:text-amber-200">
+                            <strong>Note:</strong> Only @{ADMIN_DOMAIN} email addresses are allowed.
+                            Your account will require approval from an existing super admin.
+                        </p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
@@ -218,17 +160,15 @@ function SignupContent() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="email">Email</Label>
+                            <Label htmlFor="email">Work Email</Label>
                             <Input
                                 id="email"
                                 type="email"
-                                value={invitation?.email || ''}
-                                disabled
-                                className="bg-muted"
+                                placeholder={`you@${ADMIN_DOMAIN}`}
+                                value={formData.email}
+                                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                                required
                             />
-                            <p className="text-xs text-muted-foreground">
-                                Email is set by your invitation and cannot be changed
-                            </p>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -258,10 +198,10 @@ function SignupContent() {
                             {isLoading ? (
                                 <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                    Creating account...
+                                    Submitting...
                                 </>
                             ) : (
-                                'Create Account'
+                                'Request Admin Access'
                             )}
                         </Button>
                     </form>
@@ -275,17 +215,5 @@ function SignupContent() {
                 </CardContent>
             </Card>
         </div>
-    );
-}
-
-export default function SignupPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center">
-                <Loader2 className="h-8 w-8 animate-spin" />
-            </div>
-        }>
-            <SignupContent />
-        </Suspense>
     );
 }

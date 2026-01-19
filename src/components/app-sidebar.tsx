@@ -23,6 +23,7 @@ import {
     Plus,
     Shield,
     FileText,
+    UserPlus,
 } from 'lucide-react';
 
 import {
@@ -74,6 +75,7 @@ const adminNavItems = [
     { title: 'Users', icon: Users, href: '/dashboard/users' },
     { title: 'Roles & Permissions', icon: Shield, href: '/dashboard/roles' },
     { title: 'Organizations', icon: Building2, href: '/dashboard/organizations' },
+    { title: 'Pending Approvals', icon: UserPlus, href: '/dashboard/pending-approvals' },
     { title: 'API Docs', icon: FileText, href: '/dashboard/api-docs' },
     { title: 'Settings', icon: Settings, href: '/dashboard/settings' },
 ];
