@@ -41,7 +41,7 @@ export default function ApiDocsPage() {
                     key={isDarkMode ? 'dark' : 'light'}
                     configuration={{
                         url: '/openapi.yaml',
-                        theme: 'elysiajs',
+                        theme: 'deepSpace',
                         hideModels: false,
                         hideDownloadButton: false,
                         forceDarkModeState: isDarkMode ? 'dark' : 'light',
