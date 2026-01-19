@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,12 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -23,25 +24,33 @@ export default function LoginPage() {
     password: '',
   });
 
-  const handleGoogleSignIn = async () => {
-    setIsGoogleLoading(true);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      });
+  // Handle error/message from OAuth redirect
+  useEffect(() => {
+    const error = searchParams.get('error');
+    const message = searchParams.get('message');
 
-      if (error) {
-        toast.error(error.message);
-        setIsGoogleLoading(false);
-      }
-      // User will be redirected to Google
-    } catch {
-      toast.error('Failed to initiate Google sign-in');
-      setIsGoogleLoading(false);
+    if (error) {
+      const errorMessages: Record<string, string> = {
+        oauth_denied: 'Google sign-in was cancelled',
+        invalid_callback: 'Invalid OAuth callback',
+        token_exchange_failed: 'Failed to complete Google sign-in',
+        account_suspended: 'Your account has been suspended',
+        signin_failed: 'Failed to sign in',
+        create_user_failed: 'Failed to create account',
+        callback_failed: 'Something went wrong. Please try again.',
+      };
+      toast.error(errorMessages[error] || 'An error occurred');
     }
+
+    if (message === 'account_created') {
+      toast.success('Account created! You can now sign in.');
+    }
+  }, [searchParams]);
+
+  const handleGoogleSignIn = () => {
+    setIsGoogleLoading(true);
+    // Redirect to our API OAuth endpoint
+    window.location.href = `${API_BASE_URL}/api/auth/google?redirect_to=/dashboard`;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -184,5 +193,17 @@ export default function LoginPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }

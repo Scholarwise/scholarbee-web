@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
@@ -9,8 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { toast } from 'sonner';
-import { Shield, Loader2, CheckCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { Shield, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const ADMIN_DOMAIN = 'myndloop.com';
@@ -19,6 +18,7 @@ function AdminSignupContent() {
     const router = useRouter();
     const searchParams = useSearchParams();
     const isPending = searchParams.get('pending') === 'true';
+    const error = searchParams.get('error');
 
     const [isLoading, setIsLoading] = useState(false);
     const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -37,28 +37,10 @@ function AdminSignupContent() {
         return domain === ADMIN_DOMAIN;
     };
 
-    const handleGoogleSignIn = async () => {
+    const handleGoogleSignIn = () => {
         setIsGoogleLoading(true);
-        try {
-            const { error } = await supabase.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: `${window.location.origin}/auth/callback`,
-                    queryParams: {
-                        hd: ADMIN_DOMAIN, // Hint Google to show only @myndloop.com accounts
-                    },
-                },
-            });
-
-            if (error) {
-                toast.error(error.message);
-                setIsGoogleLoading(false);
-            }
-            // User will be redirected to Google
-        } catch (err) {
-            toast.error('Failed to initiate Google sign-in');
-            setIsGoogleLoading(false);
-        }
+        // Redirect to our API OAuth endpoint
+        window.location.href = `${API_BASE_URL}/api/auth/google?admin=true&redirect_to=/dashboard`;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -106,6 +88,33 @@ function AdminSignupContent() {
             setIsLoading(false);
         }
     };
+
+    // Error state from OAuth
+    if (error === 'invalid_domain') {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
+                <Card className="w-full max-w-md">
+                    <CardHeader className="space-y-1 text-center">
+                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-red-100 dark:bg-red-900 flex items-center justify-center">
+                            <AlertCircle className="h-8 w-8 text-red-600 dark:text-red-400" />
+                        </div>
+                        <CardTitle className="text-2xl font-bold">Invalid Email Domain</CardTitle>
+                        <CardDescription className="text-base">
+                            Only @{ADMIN_DOMAIN} email addresses are allowed for admin registration.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Button
+                            className="w-full"
+                            onClick={() => router.push('/admin/signup')}
+                        >
+                            Try Again
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
 
     // Success/Pending state
     if (isSubmitted) {
