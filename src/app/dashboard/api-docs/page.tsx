@@ -35,7 +35,7 @@ export default function ApiDocsPage() {
     }
 
     return (
-        <div className="h-screen -mx-4 -mb-4 overflow-hidden">
+        <div className="h-screen overflow-hidden">
             <div className="h-full overflow-auto">
                 <ApiReferenceReact
                     key={isDarkMode ? 'dark' : 'light'}
