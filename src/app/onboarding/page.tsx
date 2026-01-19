@@ -102,11 +102,28 @@ function OnboardingContent() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <div className="mb-6 p-3 rounded-lg bg-muted/50 text-sm text-muted-foreground">
-                        Signed in as <strong>{user.email}</strong>
-                    </div>
-
                     <form onSubmit={handleSubmit} className="space-y-4">
+                        {/* Read-only fields - display only, not submitted */}
+                        <div className="space-y-2">
+                            <Label htmlFor="email">Email</Label>
+                            <Input
+                                id="email"
+                                value={user.email}
+                                disabled
+                                className="bg-muted cursor-not-allowed"
+                            />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor="organization">Organization</Label>
+                            <Input
+                                id="organization"
+                                value="SYSTEM"
+                                disabled
+                                className="bg-muted cursor-not-allowed"
+                            />
+                        </div>
+
+                        {/* Editable fields */}
                         <div className="grid grid-cols-2 gap-4">
                             <div className="space-y-2">
                                 <Label htmlFor="firstName">First Name</Label>
