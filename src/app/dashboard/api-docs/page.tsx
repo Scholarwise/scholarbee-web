@@ -5,13 +5,20 @@ import '@scalar/api-reference-react/style.css';
 
 export default function ApiDocsPage() {
     return (
-        <div className="h-full w-full">
+        <div
+            style={{
+                height: 'calc(100vh - 64px)',
+                width: '100%',
+                position: 'relative',
+            }}
+        >
             <ApiReferenceReact
                 configuration={{
                     url: '/openapi.yaml',
                     theme: 'purple',
                     darkMode: true,
-                    layout: 'classic',
+                    layout: 'modern',
+                    defaultOpenAllTags: true,
                 }}
             />
         </div>
