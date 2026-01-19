@@ -1,0 +1,1298 @@
+openapi: 3.0.3
+info:
+  title: ScholarBee IAM API
+  description: |
+    Identity and Access Management (IAM) API for the ScholarBee assessment platform.
+    
+    ## Authentication
+    Most endpoints require a Bearer token obtained from the `/api/auth/login` endpoint.
+    Include the token in the `Authorization` header: `Bearer <access_token>`
+  version: 2.0.0
+  contact:
+    name: ScholarBee Team
+
+servers:
+  - url: https://scholarbee-api.scholarwise.workers.dev
+    description: Production
+  - url: http://localhost:8787
+    description: Local Development
+
+tags:
+  - name: Auth
+    description: Authentication and session management
+  - name: Users
+    description: User management
+  - name: Organizations
+    description: Organization management with hierarchical structure
+  - name: Roles
+    description: Role management with permissions
+  - name: Permissions
+    description: Permission definitions
+  - name: Exams
+    description: Exam management with scheduling slots
+  - name: Questions
+    description: Question bank management
+  - name: Invitations
+    description: User invitations
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        first_name:
+          type: string
+        last_name:
+          type: string
+        full_name:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        organizations:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              role:
+                type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Organization:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        parent_id:
+          type: string
+          format: uuid
+          nullable: true
+        description:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    Role:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+        is_default:
+          type: boolean
+        priority:
+          type: integer
+        role_permissions:
+          type: array
+          items:
+            type: object
+            properties:
+              permission_id:
+                type: string
+                format: uuid
+              permission:
+                $ref: '#/components/schemas/Permission'
+
+    Permission:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        description:
+          type: string
+        resource_type:
+          type: string
+        action:
+          type: string
+
+    Exam:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        code:
+          type: string
+        description:
+          type: string
+        status:
+          type: string
+          enum: [draft, published, archived]
+        duration:
+          type: integer
+          description: Duration in minutes
+        passingPercentage:
+          type: number
+        maxAttempts:
+          type: integer
+        organization:
+          type: object
+          properties:
+            name:
+              type: string
+        slots:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExamSlot'
+        createdAt:
+          type: string
+          format: date-time
+
+    ExamSlot:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        slot_date:
+          type: string
+          format: date
+        start_time:
+          type: string
+          format: time
+        end_time:
+          type: string
+          format: time
+        max_candidates:
+          type: integer
+          nullable: true
+
+    Question:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organization_id:
+          type: string
+          format: uuid
+        text:
+          type: string
+        type:
+          type: string
+          enum: [MCQ, TRUE_FALSE, SHORT_ANSWER, ESSAY]
+        options:
+          type: array
+          items:
+            type: string
+          nullable: true
+        correct_answer:
+          type: string
+          nullable: true
+        complexity:
+          type: string
+          enum: [EASY, MEDIUM, HARD]
+        topic:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    Invitation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        org_name:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        expires_at:
+          type: string
+          format: date-time
+
+paths:
+  # ============= AUTH =============
+  /api/auth/register:
+    post:
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                  minLength: 6
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '200':
+          description: Registration successful, verification email sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    type: object
+                  session:
+                    type: object
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/auth/verify:
+    post:
+      tags: [Auth]
+      summary: Verify email with OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, token]
+              properties:
+                email:
+                  type: string
+                  format: email
+                token:
+                  type: string
+                type:
+                  type: string
+                  default: signup
+      responses:
+        '200':
+          description: Email verified successfully
+        '400':
+          description: Invalid token
+
+  /api/auth/resend-otp:
+    post:
+      tags: [Auth]
+      summary: Resend verification OTP
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                type:
+                  type: string
+                  default: signup
+      responses:
+        '200':
+          description: OTP resent successfully
+
+  /api/auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+                  expires_in:
+                    type: integer
+                  token_type:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+        '401':
+          description: Invalid credentials
+
+  /api/auth/logout:
+    post:
+      tags: [Auth]
+      summary: Logout current session
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Logged out successfully
+
+  /api/auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Token refreshed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  access_token:
+                    type: string
+                  refresh_token:
+                    type: string
+
+  /api/auth/user:
+    get:
+      tags: [Auth]
+      summary: Get current authenticated user
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          description: Unauthorized
+
+  /api/auth/password/reset:
+    post:
+      tags: [Auth]
+      summary: Request password reset
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+      responses:
+        '200':
+          description: Reset link sent if account exists
+
+  /api/auth/password/update:
+    post:
+      tags: [Auth]
+      summary: Update password
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password:
+                  type: string
+                  minLength: 6
+      responses:
+        '200':
+          description: Password updated
+
+  # ============= USERS =============
+  /api/users:
+    get:
+      tags: [Users]
+      summary: List all users
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+    post:
+      tags: [Users]
+      summary: Create a new user (admin)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /api/users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: User not found
+
+    delete:
+      tags: [Users]
+      summary: Delete user
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: User deleted
+
+  # ============= ORGANIZATIONS =============
+  /api/organizations:
+    get:
+      tags: [Organizations]
+      summary: List organizations for current user
+      description: Returns organizations the user belongs to, including descendants via org_closures
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of organizations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Organization'
+
+    post:
+      tags: [Organizations]
+      summary: Create a new organization
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                slug:
+                  type: string
+                description:
+                  type: string
+                parent_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+
+  /api/organizations/{id}:
+    get:
+      tags: [Organizations]
+      summary: Get organization by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Organization details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Organization'
+
+    put:
+      tags: [Organizations]
+      summary: Update organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: Organization updated
+
+    delete:
+      tags: [Organizations]
+      summary: Delete organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Organization deleted
+
+  # ============= ROLES =============
+  /api/roles:
+    get:
+      tags: [Roles]
+      summary: List all roles
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of roles
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  roles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Role'
+
+    post:
+      tags: [Roles]
+      summary: Create a new role
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                slug:
+                  type: string
+                description:
+                  type: string
+                permission_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '201':
+          description: Role created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+
+  /api/roles/{id}:
+    get:
+      tags: [Roles]
+      summary: Get role by ID with permissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Role details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Role'
+
+    patch:
+      tags: [Roles]
+      summary: Update role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                permission_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Role updated
+
+    delete:
+      tags: [Roles]
+      summary: Delete role
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Role deleted
+
+  /api/roles/priority:
+    put:
+      tags: [Roles]
+      summary: Update role priorities
+      description: Reorder roles by priority. The order of role_ids determines priority (index 0 = highest).
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role_ids]
+              properties:
+                role_ids:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: Priorities updated
+
+  # ============= PERMISSIONS =============
+  /api/permissions:
+    get:
+      tags: [Permissions]
+      summary: List all permissions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: List of permissions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  permissions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Permission'
+
+    post:
+      tags: [Permissions]
+      summary: Create a new permission
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                resource_type:
+                  type: string
+                action:
+                  type: string
+      responses:
+        '201':
+          description: Permission created
+
+  /api/permissions/{id}:
+    get:
+      tags: [Permissions]
+      summary: Get permission by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Permission details
+
+    patch:
+      tags: [Permissions]
+      summary: Update permission
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+                resource_type:
+                  type: string
+                action:
+                  type: string
+      responses:
+        '200':
+          description: Permission updated
+
+    delete:
+      tags: [Permissions]
+      summary: Delete permission
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Permission deleted
+
+  # ============= EXAMS =============
+  /api/exams:
+    get:
+      tags: [Exams]
+      summary: List all exams
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of exams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+                    code:
+                      type: string
+                    status:
+                      type: string
+                    createdAt:
+                      type: string
+                      format: date-time
+                    org:
+                      type: string
+
+    post:
+      tags: [Exams]
+      summary: Create a new exam
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title, code, organization]
+              properties:
+                title:
+                  type: string
+                code:
+                  type: string
+                organization:
+                  type: string
+                  description: Organization ID or slug
+                description:
+                  type: string
+                duration:
+                  type: integer
+                  default: 60
+                passingPercentage:
+                  type: number
+                  default: 0
+                maxAttempts:
+                  type: integer
+                  default: 1
+                status:
+                  type: string
+                  enum: [draft, published, archived]
+                  default: draft
+                slots:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      date:
+                        type: string
+                        format: date
+                      startTime:
+                        type: string
+                      endTime:
+                        type: string
+                      maxCandidates:
+                        type: integer
+      responses:
+        '201':
+          description: Exam created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+
+  /api/exams/{id}:
+    get:
+      tags: [Exams]
+      summary: Get exam with slots
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Exam details with slots
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exam'
+
+    delete:
+      tags: [Exams]
+      summary: Delete exam (super_admin only)
+      description: Requires super_admin role. Cascades to delete all exam slots.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Exam deleted
+        '403':
+          description: Forbidden - requires super_admin role
+
+  # ============= QUESTIONS =============
+  /api/questions:
+    get:
+      tags: [Questions]
+      summary: List questions by organization
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: X-Org-Id
+          in: header
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of questions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  questions:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Question'
+
+    post:
+      tags: [Questions]
+      summary: Create a new question
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [org_id, text, type]
+              properties:
+                org_id:
+                  type: string
+                  format: uuid
+                text:
+                  type: string
+                type:
+                  type: string
+                  enum: [MCQ, TRUE_FALSE, SHORT_ANSWER, ESSAY]
+                options:
+                  type: array
+                  items:
+                    type: string
+                correct_answer:
+                  type: string
+                complexity:
+                  type: string
+                  enum: [EASY, MEDIUM, HARD]
+                  default: MEDIUM
+                topic:
+                  type: string
+      responses:
+        '201':
+          description: Question created
+
+  /api/questions/upload:
+    post:
+      tags: [Questions]
+      summary: Bulk upload questions
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: org_id
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: X-Org-Id
+          in: header
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [questions]
+              properties:
+                questions:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      question_text:
+                        type: string
+                      question_type:
+                        type: string
+                      options:
+                        type: array
+                        items:
+                          type: string
+                      correct_answer:
+                        type: string
+                      difficulty:
+                        type: string
+                      topic:
+                        type: string
+      responses:
+        '201':
+          description: Questions imported
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  success:
+                    type: integer
+
+  /api/questions/{id}:
+    patch:
+      tags: [Questions]
+      summary: Update question
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                text:
+                  type: string
+                type:
+                  type: string
+                options:
+                  type: array
+                  items:
+                    type: string
+                correct_answer:
+                  type: string
+                complexity:
+                  type: string
+                topic:
+                  type: string
+      responses:
+        '200':
+          description: Question updated
+
+    delete:
+      tags: [Questions]
+      summary: Delete question
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Question deleted
+
+  # ============= INVITATIONS =============
+  /api/invitations:
+    get:
+      tags: [Invitations]
+      summary: List pending invitations
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of invitations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Invitation'
+
+    post:
+      tags: [Invitations]
+      summary: Create an invitation
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email:
+                  type: string
+                  format: email
+                org_id:
+                  type: string
+                  format: uuid
+      responses:
+        '201':
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Invitation'

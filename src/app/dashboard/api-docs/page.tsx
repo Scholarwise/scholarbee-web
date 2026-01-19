@@ -8,7 +8,7 @@ export default function ApiDocsPage() {
         <div className="flex flex-col h-[calc(100vh-4rem)]">
             <ApiReferenceReact
                 configuration={{
-                    url: 'https://raw.githubusercontent.com/Scholarwise/scholarbee-monorepo/main/api/openapi.yaml',
+                    url: '/openapi.yaml',
                     theme: 'purple',
                     darkMode: true,
                     hideModels: false,
