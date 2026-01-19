@@ -16,10 +16,14 @@ function OnboardingContent() {
     const searchParams = useSearchParams();
     const redirectTo = searchParams.get('redirect_to') || '/dashboard';
 
+    // Pre-fill from Google OAuth data passed via URL params
+    const initialFirstName = searchParams.get('first_name') || '';
+    const initialLastName = searchParams.get('last_name') || '';
+
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
+        firstName: initialFirstName,
+        lastName: initialLastName,
     });
 
     // Get user from localStorage

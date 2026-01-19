@@ -65,9 +65,14 @@ function CompleteAuthContent() {
                         if (response.ok) {
                             const userData = await response.json();
 
-                            // If first_name or last_name is missing, redirect to onboarding
+                            // If first_name or last_name is missing, redirect to onboarding with Google name pre-fill
                             if (!userData.first_name || !userData.last_name) {
-                                router.push(`/onboarding?redirect_to=${encodeURIComponent(redirectTo)}`);
+                                const params = new URLSearchParams({
+                                    redirect_to: redirectTo,
+                                    first_name: tokenData.given_name || '',
+                                    last_name: tokenData.family_name || '',
+                                });
+                                router.push(`/onboarding?${params.toString()}`);
                                 return;
                             }
 
