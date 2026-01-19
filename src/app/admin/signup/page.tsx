@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Shield, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Shield, Loader2, AlertCircle } from 'lucide-react';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 const ADMIN_DOMAIN = 'myndloop.com';
@@ -57,31 +57,29 @@ function AdminSignupContent() {
             <div className="min-h-screen flex items-center justify-center bg-background px-4 py-8">
                 <Card className="w-full max-w-md">
                     <CardHeader className="space-y-1 text-center">
-                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center">
-                            <CheckCircle className="h-8 w-8 text-green-600 dark:text-green-400" />
+                        <div className="mx-auto mb-4 h-16 w-16 rounded-full bg-amber-100 dark:bg-amber-900 flex items-center justify-center">
+                            <Shield className="h-8 w-8 text-amber-600 dark:text-amber-400" />
                         </div>
-                        <CardTitle className="text-2xl font-bold">Registration Submitted</CardTitle>
+                        <CardTitle className="text-2xl font-bold">Pending Approval</CardTitle>
                         <CardDescription className="text-base">
-                            Your admin account request has been submitted successfully.
+                            Your account is awaiting approval from an administrator.
                         </CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-4">
                         <div className="rounded-lg border bg-muted/50 p-4 text-sm text-muted-foreground">
                             <p className="mb-2">
-                                <strong>What happens next?</strong>
+                                <strong>Need immediate access?</strong>
                             </p>
-                            <ul className="list-disc list-inside space-y-1">
-                                <li>A super admin will review your request</li>
-                                <li>You&apos;ll receive a notification when approved</li>
-                                <li>Once approved, you can log in with full admin access</li>
-                            </ul>
+                            <p>
+                                Contact an existing admin to expedite your approval, or try signing in again later.
+                            </p>
                         </div>
                         <Button
                             className="w-full"
                             variant="outline"
                             onClick={() => router.push('/login')}
                         >
-                            Go to Login
+                            Back to Login
                         </Button>
                     </CardContent>
                 </Card>
@@ -105,7 +103,6 @@ function AdminSignupContent() {
                     <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-900 dark:bg-amber-950/50 p-3 mb-6">
                         <p className="text-sm text-amber-800 dark:text-amber-200">
                             <strong>Note:</strong> Only @{ADMIN_DOMAIN} Google Workspace accounts are allowed.
-                            Your request will require approval from an existing super admin.
                         </p>
                     </div>
 
