@@ -3,7 +3,7 @@
 import * as React from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
-import { useOrganizations } from '@/contexts/organizations-context';
+import { useOrganizations, clearAllOrgCaches } from '@/contexts/organizations-context';
 import {
     BookOpen,
     FileQuestion,
@@ -113,6 +113,8 @@ export function AppSidebar() {
     }, [isSuperAdmin, isSystemOrg]);
 
     const handleLogout = () => {
+        // Clear org cache before logout
+        clearAllOrgCaches();
         localStorage.removeItem('access_token');
         localStorage.removeItem('refresh_token');
         localStorage.removeItem('user');

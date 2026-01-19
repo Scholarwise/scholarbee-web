@@ -19,7 +19,7 @@ interface OrganizationsContextType {
 
 const OrganizationsContext = createContext<OrganizationsContextType | undefined>(undefined);
 
-const CACHE_KEY = 'orgs_cache';
+const CACHE_KEY_PREFIX = 'orgs_cache_';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface CacheData {
@@ -27,11 +27,33 @@ interface CacheData {
     timestamp: number;
 }
 
-// Get cached orgs from sessionStorage
+// Extract user ID from JWT token
+function getUserIdFromToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    try {
+        const token = localStorage.getItem('access_token');
+        if (!token) return null;
+        const parts = token.split('.');
+        if (parts.length !== 3) return null;
+        const payload = JSON.parse(atob(parts[1]));
+        return payload.sub || null;
+    } catch {
+        return null;
+    }
+}
+
+// Get cache key for current user
+function getCacheKey(): string {
+    const userId = getUserIdFromToken();
+    return userId ? `${CACHE_KEY_PREFIX}${userId}` : CACHE_KEY_PREFIX;
+}
+
+// Get cached orgs from sessionStorage (user-specific)
 function getCachedOrgs(): Organization[] | null {
     if (typeof window === 'undefined') return null;
     try {
-        const cached = sessionStorage.getItem(CACHE_KEY);
+        const cacheKey = getCacheKey();
+        const cached = sessionStorage.getItem(cacheKey);
         if (cached) {
             const data: CacheData = JSON.parse(cached);
             // Check if cache is still valid (within TTL)
@@ -43,23 +65,43 @@ function getCachedOrgs(): Organization[] | null {
     return null;
 }
 
-// Save orgs to sessionStorage
+// Save orgs to sessionStorage (user-specific)
 function setCachedOrgs(orgs: Organization[]) {
     if (typeof window === 'undefined') return;
     try {
+        const cacheKey = getCacheKey();
         const data: CacheData = {
             organizations: orgs,
             timestamp: Date.now()
         };
-        sessionStorage.setItem(CACHE_KEY, JSON.stringify(data));
+        sessionStorage.setItem(cacheKey, JSON.stringify(data));
     } catch { }
 }
 
-// Clear the cache
+// Clear the cache for current user
 function clearCachedOrgs() {
     if (typeof window === 'undefined') return;
     try {
-        sessionStorage.removeItem(CACHE_KEY);
+        const cacheKey = getCacheKey();
+        sessionStorage.removeItem(cacheKey);
+    } catch { }
+}
+
+// Clear ALL org caches (for logout)
+export function clearAllOrgCaches() {
+    if (typeof window === 'undefined') return;
+    try {
+        // Remove all cache keys that start with our prefix
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const key = sessionStorage.key(i);
+            if (key && key.startsWith(CACHE_KEY_PREFIX)) {
+                keysToRemove.push(key);
+            }
+        }
+        keysToRemove.forEach(key => sessionStorage.removeItem(key));
+        // Also clear current_org
+        localStorage.removeItem('current_org');
     } catch { }
 }
 
@@ -79,6 +121,7 @@ function getActiveOrgFromStorage(orgs: Organization[]): Organization | null {
 
 // Track in-flight fetch to prevent duplicate requests
 let fetchPromise: Promise<Organization[]> | null = null;
+let lastUserId: string | null = null;
 
 export function OrganizationsProvider({ children }: { children: ReactNode }) {
     // Initialize from sessionStorage cache immediately
@@ -91,6 +134,14 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
     const hasFetchedRef = useRef(false);
 
     const fetchOrganizations = useCallback(async (force = false): Promise<Organization[]> => {
+        // Check if user changed - if so, force refresh
+        const currentUserId = getUserIdFromToken();
+        if (lastUserId !== null && lastUserId !== currentUserId) {
+            force = true;
+            clearCachedOrgs();
+        }
+        lastUserId = currentUserId;
+
         // Return cached data if available and not forcing refresh
         const cached = getCachedOrgs();
         if (!force && cached) {
@@ -131,23 +182,29 @@ export function OrganizationsProvider({ children }: { children: ReactNode }) {
         return fetchPromise;
     }, []);
 
-    // Initialize on mount - but only fetch if no cache
+    // Initialize on mount - but only fetch if no cache OR user changed
     useEffect(() => {
-        // Already fetched in this component lifecycle
-        if (hasFetchedRef.current) return;
-        hasFetchedRef.current = true;
+        const currentUserId = getUserIdFromToken();
+        const userChanged = lastUserId !== null && lastUserId !== currentUserId;
 
-        // If we have cached data, use it directly (no state updates needed, already initialized)
+        // Already fetched in this component lifecycle (and user hasn't changed)
+        if (hasFetchedRef.current && !userChanged) return;
+        hasFetchedRef.current = true;
+        lastUserId = currentUserId;
+
+        // If we have cached data for THIS user, use it directly
         const cached = getCachedOrgs();
-        if (cached && cached.length > 0) {
-            // Only update if different from initial state
+        if (cached && cached.length > 0 && !userChanged) {
             return;
         }
 
-        // No cache, fetch from API
+        // No cache or user changed, fetch from API
         const init = async () => {
             setIsLoading(true);
-            const orgs = await fetchOrganizations();
+            if (userChanged) {
+                clearCachedOrgs();
+            }
+            const orgs = await fetchOrganizations(userChanged);
             setOrganizations(orgs);
 
             const active = getActiveOrgFromStorage(orgs);
