@@ -56,17 +56,23 @@ function CompleteAuthContent() {
 
                 if (tokenData.access_token) {
                     try {
+                        console.log('[auth/complete] Fetching user profile...');
                         const response = await fetch(`${API_BASE_URL}/api/users/me`, {
                             headers: {
                                 'Authorization': `Bearer ${tokenData.access_token}`,
                             },
                         });
 
+                        console.log('[auth/complete] Response status:', response.status, response.ok);
+
                         if (response.ok) {
                             const userData = await response.json();
+                            console.log('[auth/complete] User data:', userData);
+                            console.log('[auth/complete] first_name:', userData.first_name, '| last_name:', userData.last_name);
 
                             // If first_name or last_name is missing, redirect to onboarding with Google name pre-fill
                             if (!userData.first_name || !userData.last_name) {
+                                console.log('[auth/complete] Profile incomplete, redirecting to onboarding');
                                 const params = new URLSearchParams({
                                     redirect_to: redirectTo,
                                     first_name: tokenData.given_name || '',
@@ -76,6 +82,7 @@ function CompleteAuthContent() {
                                 return;
                             }
 
+                            console.log('[auth/complete] Profile complete, updating localStorage');
                             // Update local user data with complete profile
                             localStorage.setItem('user', JSON.stringify({
                                 id: userData.id,
@@ -83,9 +90,11 @@ function CompleteAuthContent() {
                                 first_name: userData.first_name,
                                 last_name: userData.last_name,
                             }));
+                        } else {
+                            console.warn('[auth/complete] Response not ok, status:', response.status);
                         }
                     } catch (err) {
-                        console.warn('Could not fetch user profile, continuing...', err);
+                        console.warn('[auth/complete] Could not fetch user profile, error:', err);
                     }
                 }
 
