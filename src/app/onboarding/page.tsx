@@ -68,8 +68,18 @@ function OnboardingContent() {
                 throw new Error(data.error || 'Failed to update profile');
             }
 
-            // Update local storage with new user data
-            const updatedUser = { ...user, first_name: formData.firstName, last_name: formData.lastName };
+            // Update local storage with new user data (include user_metadata for sidebar compatibility)
+            const updatedUser = {
+                ...user,
+                first_name: formData.firstName.trim(),
+                last_name: formData.lastName.trim(),
+                user_metadata: {
+                    ...(user as any).user_metadata,
+                    first_name: formData.firstName.trim(),
+                    last_name: formData.lastName.trim(),
+                    full_name: `${formData.firstName.trim()} ${formData.lastName.trim()}`,
+                }
+            };
             localStorage.setItem('user', JSON.stringify(updatedUser));
 
             toast.success('Profile updated!');

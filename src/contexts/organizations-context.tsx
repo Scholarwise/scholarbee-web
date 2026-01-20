@@ -116,6 +116,12 @@ function getActiveOrgFromStorage(orgs: Organization[]): Organization | null {
             if (found) return found;
         }
     } catch { }
+
+    // No saved org - prefer System org if available (for super admins)
+    const systemOrg = orgs.find(o => o.is_system_org || o.slug === 'system' || o.name === 'System');
+    if (systemOrg) return systemOrg;
+
+    // Fall back to first org
     return orgs.length > 0 ? orgs[0] : null;
 }
 
