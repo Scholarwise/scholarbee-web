@@ -126,8 +126,9 @@ export function AppSidebar() {
     const getUserInitials = () => {
         try {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const firstName = user.user_metadata?.first_name || '';
-            const lastName = user.user_metadata?.last_name || '';
+            // Check both user_metadata and top-level fields for resilience
+            const firstName = user.user_metadata?.first_name || user.first_name || '';
+            const lastName = user.user_metadata?.last_name || user.last_name || '';
             if (firstName || lastName) {
                 return ((firstName[0] || '') + (lastName[0] || '')).toUpperCase();
             }
@@ -149,8 +150,9 @@ export function AppSidebar() {
     const getUserName = () => {
         try {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const firstName = user.user_metadata?.first_name || '';
-            const lastName = user.user_metadata?.last_name || '';
+            // Check both user_metadata and top-level fields for resilience
+            const firstName = user.user_metadata?.first_name || user.first_name || '';
+            const lastName = user.user_metadata?.last_name || user.last_name || '';
             const fullName = `${firstName} ${lastName}`.trim();
             return fullName || user.user_metadata?.full_name || 'User';
         } catch {
