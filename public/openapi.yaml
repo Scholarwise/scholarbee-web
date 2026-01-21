@@ -474,6 +474,131 @@ paths:
         '200':
           description: Password updated
 
+  /api/auth/google:
+    get:
+      tags: [Auth]
+      summary: Initiate Google OAuth login
+      description: |
+        Redirects to Google's OAuth consent screen.
+        For admin signup, add `?admin=true` to restrict to organization domain.
+      parameters:
+        - name: admin
+          in: query
+          schema:
+            type: boolean
+          description: If true, restricts to admin email domain
+        - name: redirect_to
+          in: query
+          schema:
+            type: string
+          description: URL to redirect after successful login
+      responses:
+        '302':
+          description: Redirect to Google OAuth
+
+  /api/auth/google/callback:
+    get:
+      tags: [Auth]
+      summary: Google OAuth callback
+      description: |
+        Handles Google OAuth callback. On success, redirects to frontend 
+        with session tokens in URL params.
+      parameters:
+        - name: code
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: state
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '302':
+          description: Redirect to frontend with auth token
+
+  /api/auth/admin-register:
+    post:
+      tags: [Auth]
+      summary: Admin self-registration (requires approval)
+      description: |
+        Self-registration for admin domain users. Creates a pending 
+        registration that requires super_admin approval.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  description: Must be from admin domain (e.g., @myndloop.com)
+                password:
+                  type: string
+                  minLength: 6
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '200':
+          description: Registration pending approval
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  pending_approval:
+                    type: boolean
+        '400':
+          description: Invalid email domain or validation error
+
+  /api/auth/oauth-sync:
+    post:
+      tags: [Auth]
+      summary: Sync OAuth user with local database
+      description: Called after successful OAuth to create/update user record
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [user_id, email]
+              properties:
+                user_id:
+                  type: string
+                  format: uuid
+                email:
+                  type: string
+                  format: email
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '200':
+          description: User synced successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user_id:
+                    type: string
+                  status:
+                    type: string
+                  pending_approval:
+                    type: boolean
+
   # ============= USERS =============
   /api/users:
     get:
@@ -559,6 +684,165 @@ paths:
       responses:
         '204':
           description: User deleted
+
+  /api/users/me:
+    get:
+      tags: [Users]
+      summary: Get current user's profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  email:
+                    type: string
+                    format: email
+                  first_name:
+                    type: string
+                    nullable: true
+                  last_name:
+                    type: string
+                    nullable: true
+                  status:
+                    type: string
+                  created_at:
+                    type: string
+                    format: date-time
+        '401':
+          description: Unauthorized
+
+  /api/users/me/profile:
+    patch:
+      tags: [Users]
+      summary: Update current user's profile
+      description: Update first_name and last_name (used during onboarding)
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                first_name:
+                  type: string
+                last_name:
+                  type: string
+      responses:
+        '200':
+          description: Profile updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  email:
+                    type: string
+                  first_name:
+                    type: string
+                  last_name:
+                    type: string
+        '401':
+          description: Unauthorized
+
+  /api/users/pending:
+    get:
+      tags: [Users]
+      summary: List pending admin registrations
+      description: Returns pending admin registration requests (super_admin only)
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: List of pending registrations
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    user_id:
+                      type: string
+                      format: uuid
+                    email:
+                      type: string
+                    first_name:
+                      type: string
+                    last_name:
+                      type: string
+                    full_name:
+                      type: string
+                    requested_at:
+                      type: string
+                      format: date-time
+        '403':
+          description: Forbidden (not super_admin)
+
+  /api/users/{id}/approve:
+    post:
+      tags: [Users]
+      summary: Approve pending admin registration
+      description: Approves a pending admin and grants super_admin role (super_admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User approved
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  user_id:
+                    type: string
+        '403':
+          description: Forbidden (not super_admin)
+        '404':
+          description: User not found
+
+  /api/users/{id}/reject:
+    post:
+      tags: [Users]
+      summary: Reject pending admin registration
+      description: Rejects and deletes a pending admin registration (super_admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Registration rejected
+        '403':
+          description: Forbidden (not super_admin)
 
   # ============= ORGANIZATIONS =============
   /api/organizations:
