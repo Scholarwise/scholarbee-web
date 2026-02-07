@@ -88,6 +88,10 @@ export function AppSidebar() {
     // Use organizations from context (cached at app level)
     const { organizations, activeOrg, isLoading: isLoadingOrgs, setActiveOrg } = useOrganizations();
 
+    // Track if component is mounted (for hydration)
+    const [isMounted, setIsMounted] = React.useState(false);
+    React.useEffect(() => { setIsMounted(true); }, []);
+
     // Check if user is super_admin - initialize from localStorage synchronously to prevent flicker
     const [isSuperAdmin, setIsSuperAdmin] = React.useState(() => {
         // Synchronous initialization from localStorage
@@ -145,18 +149,23 @@ export function AppSidebar() {
         fetchRolesOnce();
     }, [isSuperAdmin]);
 
-    const isSystemOrg = activeOrg?.slug === 'system' || activeOrg?.name === 'System';
+    // Memoize isSystemOrg based on org id to prevent unnecessary re-renders
+    const isSystemOrg = React.useMemo(() => {
+        return activeOrg?.slug === 'system' || activeOrg?.name === 'System';
+    }, [activeOrg?.id, activeOrg?.slug, activeOrg?.name]);
 
-    // Filter admin nav items based on permissions
+    // Filter admin nav items based on permissions - memoized to prevent recalculation
+    // Only check roles after mount to prevent hydration mismatch
     const filteredAdminNavItems = React.useMemo(() => {
         return adminNavItems.filter(item => {
             // Roles & Permissions only visible for super_admin in System org
+            // Use isMounted to prevent server/client mismatch (server doesn't have localStorage)
             if (item.title === 'Roles & Permissions') {
-                return isSuperAdmin && isSystemOrg;
+                return isMounted && isSuperAdmin && isSystemOrg;
             }
             return true;
         });
-    }, [isSuperAdmin, isSystemOrg]);
+    }, [isMounted, isSuperAdmin, isSystemOrg]);
 
     const handleLogout = () => {
         // Clear org cache before logout
