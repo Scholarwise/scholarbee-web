@@ -88,18 +88,62 @@ export function AppSidebar() {
     // Use organizations from context (cached at app level)
     const { organizations, activeOrg, isLoading: isLoadingOrgs, setActiveOrg } = useOrganizations();
 
-    // Check if user is super_admin and if currently viewing System org
-    const isSuperAdmin = React.useMemo(() => {
+    // Check if user is super_admin - initialize from localStorage synchronously to prevent flicker
+    const [isSuperAdmin, setIsSuperAdmin] = React.useState(() => {
+        // Synchronous initialization from localStorage
+        if (typeof window === 'undefined') return false;
         try {
             const user = JSON.parse(localStorage.getItem('user') || '{}');
-            const roles = user.roles || user.user_metadata?.roles || [];
-            return roles.some((r: any) =>
+            const cachedRoles = user.roles || user.user_metadata?.roles || [];
+            return cachedRoles.some((r: any) =>
                 r.role_name === 'super_admin' || r.name === 'super_admin' || r === 'super_admin'
             );
         } catch {
             return false;
         }
-    }, []);
+    });
+
+    // Only fetch from API once on mount if not already cached
+    const hasFetchedRef = React.useRef(false);
+    React.useEffect(() => {
+        // Skip if already fetched or already have super_admin status
+        if (hasFetchedRef.current || isSuperAdmin) return;
+        hasFetchedRef.current = true;
+
+        const fetchRolesOnce = async () => {
+            try {
+                const token = localStorage.getItem('access_token');
+                if (!token) return;
+
+                const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+                const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    const roles = userData.roles || [];
+                    const isSuperAdminRole = roles.some((r: any) =>
+                        r.role_name === 'super_admin' || r.name === 'super_admin'
+                    );
+
+                    if (isSuperAdminRole) {
+                        setIsSuperAdmin(true);
+                    }
+
+                    // Update localStorage with fresh roles
+                    if (roles.length > 0) {
+                        const currentUser = JSON.parse(localStorage.getItem('user') || '{}');
+                        localStorage.setItem('user', JSON.stringify({ ...currentUser, roles }));
+                    }
+                }
+            } catch (err) {
+                console.error('Error fetching roles:', err);
+            }
+        };
+
+        fetchRolesOnce();
+    }, [isSuperAdmin]);
 
     const isSystemOrg = activeOrg?.slug === 'system' || activeOrg?.name === 'System';
 

@@ -83,12 +83,13 @@ function CompleteAuthContent() {
                             }
 
                             console.log('[auth/complete] Profile complete, updating localStorage');
-                            // Update local user data with complete profile
+                            // Update local user data with complete profile including roles
                             localStorage.setItem('user', JSON.stringify({
                                 id: userData.id,
                                 email: userData.email,
                                 first_name: userData.first_name,
                                 last_name: userData.last_name,
+                                roles: userData.roles || [],
                             }));
                         } else {
                             console.warn('[auth/complete] Response not ok, status:', response.status);
